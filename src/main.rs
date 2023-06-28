@@ -2,7 +2,8 @@
 extern crate rocket;
 
 use rand::Rng;
-use reqwest;
+use reqwest::Client;
+use reqwest::Response;
 
 struct OikotieTokens {
     loaded: String,
@@ -10,41 +11,40 @@ struct OikotieTokens {
     token: String,
 }
 
-fn fetch_oikotie_tokens() -> OikotieTokens {
-    let client: reqwest::blocking::Client = reqwest::blocking::Client::new();
+async fn fetch_oikotie_tokens() -> &'static str {
+    let client: Client = Client::builder().build().unwrap();
 
-    let binding: String = rand
-        ::thread_rng()
-        .gen_range(8000..40000)
-        .to_string();
-    let params: Vec<(&str, &str)> = vec![("format", "json"), ("rand", &binding)];
+    // let random_number: String = rand
+    //     ::thread_rng()
+    //     .gen_range(8000..40000)
+    //     .to_string();
+    let params: Vec<(&str, &str)> = vec![("format", "json"), ("rand", "7123")];
 
-    let res: Result<reqwest::blocking::Response, reqwest::Error> = client
-        .get("https://asunnot.oikotie.fi/user/get?format=json&rand=7123")
-        .send();
-
-    let response = match res {
-        Ok(resp) => resp.text().unwrap(),
-        Err(err) => panic!("Error: {}", err),
-    };
+    let client = Client::new();
+    let response = client.get("https://asunnot.oikotie.fi/user/get")
+                            .query(&params)
+                            .send()
+                            .await
+                            .unwrap()
+                            .text()
+                            .await;
 
     println!("{:?}", response);
-
-    return OikotieTokens {
-        loaded: String::from("a"),
-        cuid: String::from("b"),
-        token: String::from("c"),
-    };
+    "asd"
 }
 
 #[get("/")]
-fn index() -> &'static str {
-    "Hello, world!"
+async fn index() -> &'static str {
+    let tokens = fetch_oikotie_tokens().await;
+    "heh"
 }
 
-#[launch]
-fn rocket() -> _ {
-    let tokens: OikotieTokens = fetch_oikotie_tokens();
-    let rocket = rocket::build();
-    rocket.mount("/", routes![index])
+#[rocket::main]
+async fn main() -> Result<(), rocket::Error> {
+    let _rocket = rocket::build()
+        .mount("/", routes![index])
+        .launch()
+        .await?;
+
+    Ok(())
 }
