@@ -4,6 +4,7 @@ extern crate rocket;
 use rand::Rng;
 use reqwest::Client;
 use reqwest::Response;
+use reqwest::header::{HeaderMap, HeaderValue};
 
 struct OikotieTokens {
     loaded: String,
@@ -11,26 +12,30 @@ struct OikotieTokens {
     token: String,
 }
 
-async fn fetch_oikotie_tokens() -> &'static str {
-    let client: Client = Client::builder().build().unwrap();
+async fn fetch_oikotie_tokens() -> Result<(), reqwest::Error> {
+    let client = reqwest::Client::new();
+    let random_number: String = rand
+        ::thread_rng()
+        .gen_range(5000..10000)
+        .to_string();
+    let params: Vec<(&str, &str)> = vec![("format", "json"), ("rand", &random_number)];
 
-    // let random_number: String = rand
-    //     ::thread_rng()
-    //     .gen_range(8000..40000)
-    //     .to_string();
-    let params: Vec<(&str, &str)> = vec![("format", "json"), ("rand", "7123")];
+    let mut headers = HeaderMap::new();
+    headers.insert("user-agent", HeaderValue::from_static("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"));
 
-    let client = Client::new();
-    let response = client.get("https://asunnot.oikotie.fi/user/get")
-                            .query(&params)
-                            .send()
-                            .await
-                            .unwrap()
-                            .text()
-                            .await;
+    let response = client
+        .get("https://asunnot.oikotie.fi/user/get")
+        .query(&params)
+        .headers(headers)
+        .send()
+        .await?;
 
-    println!("{:?}", response);
-    "asd"
+    // Process the response as needed
+    println!("Response status: {}", response.status());
+    let body = response.text().await?;
+    println!("Response body:\n{}", body);
+
+    Ok(())
 }
 
 #[get("/")]
