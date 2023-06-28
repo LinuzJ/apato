@@ -1,6 +1,6 @@
+use rand::Rng;
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::Deserialize;
-use rand::Rng;
 
 #[derive(Debug, Deserialize)]
 struct User {
@@ -22,10 +22,7 @@ pub struct OikotieTokens {
 
 async fn fetch_tokens() -> Result<OikotieTokens, reqwest::Error> {
     let client = reqwest::Client::new();
-    let random_number: String = rand
-        ::thread_rng()
-        .gen_range(5000..10000)
-        .to_string();
+    let random_number: String = rand::thread_rng().gen_range(5000..10000).to_string();
     let params: Vec<(&str, &str)> = vec![("format", "json"), ("rand", &random_number)];
 
     let mut headers: HeaderMap = HeaderMap::new();
@@ -40,7 +37,11 @@ async fn fetch_tokens() -> Result<OikotieTokens, reqwest::Error> {
 
     let api_response: ApiResponse = response.json().await?;
 
-    let tokens: OikotieTokens = OikotieTokens {loaded: api_response.user.time.to_string(), cuid: api_response.user.cuid, token: api_response.user.token};
+    let tokens: OikotieTokens = OikotieTokens {
+        loaded: api_response.user.time.to_string(),
+        cuid: api_response.user.cuid,
+        token: api_response.user.token,
+    };
 
     Ok(tokens)
 }
@@ -49,6 +50,10 @@ pub async fn get_tokens() -> OikotieTokens {
     let tokens: Result<OikotieTokens, reqwest::Error> = fetch_tokens().await;
     return match tokens {
         Ok(tokens) => tokens,
-        Err(e) => OikotieTokens{ loaded: todo!(), cuid: todo!(), token: todo!() }
+        Err(e) => OikotieTokens {
+            loaded: todo!(),
+            cuid: todo!(),
+            token: todo!(),
+        },
     };
 }
