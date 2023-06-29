@@ -1,14 +1,19 @@
 #[macro_use]
 extern crate rocket;
 
-mod fetch_tokens;
+mod helpers;
+mod marketplace_client;
+mod oikotie_client;
+mod tokens;
 
-use fetch_tokens::get_tokens;
+use oikotie_client::OikotieClient;
+use tokens::get_tokens;
 
 #[get("/")]
 async fn index() -> String {
-    let tokens: fetch_tokens::OikotieTokens = get_tokens().await;
-    tokens.token
+    let tokens = get_tokens();
+    let oikotie_client: OikotieClient = OikotieClient { tokens: &tokens };
+    String::from("abc")
 }
 
 #[rocket::main]
