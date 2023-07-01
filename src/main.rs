@@ -9,7 +9,7 @@ use oikotie_client::OikotieClient;
 
 #[get("/")]
 async fn index() -> String {
-    let oikotie_client: OikotieClient = OikotieClient { tokens: None };
+    let _oikotie_client: OikotieClient = OikotieClient { tokens: None };
     String::from("abc")
 }
 

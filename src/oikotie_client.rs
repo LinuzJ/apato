@@ -1,5 +1,3 @@
-use std::f32::consts::E;
-
 use crate::helpers;
 use crate::marketplace_client;
 use crate::marketplace_client::Apartment;
@@ -86,10 +84,10 @@ impl MarketplaceClient for OikotieClient {
 
         let cards: Vec<Card> = match cards_response {
             Ok(c) => c.cards,
-            Err(e) => Vec::new(),
+            Err(_e) => Vec::new(),
         };
 
-        println!("{:?}", cards);
+        println!("{:?}", cards.len());
         let apartmens: Vec<Apartment> = Vec::new();
         apartmens
     }
