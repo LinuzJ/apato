@@ -1,30 +1,27 @@
-use rand::Rng;
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
-struct User<'a> {
-    cuid: &'a str,
-    token: &'a str,
-    time: &'a str,
-}
+use crate::helpers::generate_random_number;
 
 #[derive(Debug, Deserialize)]
-struct ApiResponse<'a> {
-    user: User<'a>,
+struct User {
+    cuid: Box<str>,
+    token: Box<str>,
+    time: Box<str>,
 }
 
-pub struct OikotieTokens<'a> {
-    pub loaded: &'a str,
-    pub cuid: &'a str,
-    pub token: &'a str,
+#[derive(Debug, Deserialize)]
+struct ApiResponse {
+    user: User,
 }
 
-fn generate_random_number() -> String {
-    rand::thread_rng().gen_range(5000..10000).to_string()
+pub struct OikotieTokens {
+    pub loaded: Box<Box<str>>,
+    pub cuid: Box<Box<str>>,
+    pub token: Box<Box<str>>,
 }
 
-fn fetch_tokens() -> Result<OikotieTokens<'static>, reqwest::Error> {
+fn fetch_tokens() -> Result<Box<OikotieTokens>, reqwest::Error> {
     let client: reqwest::blocking::Client = reqwest::blocking::Client::new();
 
     let num: String = generate_random_number();
@@ -33,7 +30,7 @@ fn fetch_tokens() -> Result<OikotieTokens<'static>, reqwest::Error> {
     let mut headers: HeaderMap = HeaderMap::new();
     headers.insert("user-agent", HeaderValue::from_static("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"));
 
-    let response = client
+    let response: Result<reqwest::blocking::Response, reqwest::Error> = client
         .get("https://asunnot.oikotie.fi/user/get")
         .query(&params)
         .headers(headers)
@@ -44,24 +41,24 @@ fn fetch_tokens() -> Result<OikotieTokens<'static>, reqwest::Error> {
         Err(e) => return Err(e),
     };
 
-    let tokens: OikotieTokens = OikotieTokens {
-        loaded: &api_response.user.time,
-        cuid: api_response.user.cuid,
-        token: api_response.user.token,
-    };
+    let tokens: Box<OikotieTokens> = Box::new(OikotieTokens {
+        loaded: Box::new(api_response.user.time),
+        cuid: Box::new(api_response.user.cuid.to_owned()),
+        token: Box::new(api_response.user.token.to_owned()),
+    });
 
     Ok(tokens)
 }
 
-pub fn get_tokens() -> OikotieTokens<'static> {
-    let tokens: Result<OikotieTokens<'_>, reqwest::Error> = fetch_tokens();
+pub fn get_tokens() -> Box<OikotieTokens> {
+    let tokens: Result<Box<OikotieTokens>, reqwest::Error> = fetch_tokens();
 
     return match tokens {
         Ok(tokens) => tokens,
-        Err(_e) => OikotieTokens {
+        Err(_e) => Box::new(OikotieTokens {
             loaded: todo!(),
             cuid: todo!(),
             token: todo!(),
-        },
+        }),
     };
 }

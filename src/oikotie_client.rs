@@ -29,8 +29,8 @@ struct OitkotieCardsApiResponse {
     cards: Vec<Card>,
 }
 
-pub struct OikotieClient<'a> {
-    pub tokens: Option<OikotieTokens<'a>>,
+pub struct OikotieClient {
+    pub tokens: Option<Box<OikotieTokens>>,
 }
 
 fn fetch_apartments(
@@ -44,16 +44,16 @@ fn fetch_apartments(
     let params: Vec<(&str, &str)> = vec![("ApartmentType", "100"), ("locations", &locations)];
     let mut headers: HeaderMap = HeaderMap::new();
 
-    match HeaderValue::from_str(tokens.loaded) {
-        Ok(header) => headers.insert("ota-loaded", header),
+    match HeaderValue::from_str(&tokens.loaded) {
+        Ok(loaded) => headers.insert("ota-loaded", loaded),
         Err(_e) => todo!(),
     };
-    match HeaderValue::from_str(tokens.cuid) {
-        Ok(header) => headers.insert("ota-cuid", header),
+    match HeaderValue::from_str(&tokens.cuid) {
+        Ok(cuid) => headers.insert("ota-cuid", cuid),
         Err(_e) => todo!(),
     };
-    match HeaderValue::from_str(tokens.token) {
-        Ok(header) => headers.insert("ota-token", header),
+    match HeaderValue::from_str(&tokens.token) {
+        Ok(token) => headers.insert("ota-token", token),
         Err(_e) => todo!(),
     };
 
@@ -76,7 +76,7 @@ fn fetch_apartments(
     return Ok(cards);
 }
 
-impl MarketplaceClient for OikotieClient<'static> {
+impl MarketplaceClient for OikotieClient {
     fn get_apartments(mut self, location: Location) -> Vec<Apartment> {
         if self.tokens.is_none() {
             self.tokens = Some(get_tokens());
