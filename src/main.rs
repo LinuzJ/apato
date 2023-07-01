@@ -12,9 +12,9 @@ use oikotie_client::OikotieClient;
 async fn index() -> String {
     let oikotie_client: OikotieClient = OikotieClient { tokens: None };
     let location: Location = Location {
-        id: 1651,
+        id: 1645,
         level: 4,
-        name: String::from("Etu-Töölö"),
+        name: String::from("Ullanlinna"),
     };
     let apartments: Vec<marketplace_client::Apartment> =
         oikotie_client.get_apartments(location).await;

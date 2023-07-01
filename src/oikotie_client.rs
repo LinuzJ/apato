@@ -3,7 +3,7 @@ use crate::marketplace_client;
 use crate::marketplace_client::Apartment;
 use crate::tokens;
 use helpers::create_location_string;
-use marketplace_client::{Location, MarketplaceClient};
+use marketplace_client::Location;
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::{Deserialize, Serialize};
 use tokens::{get_tokens, OikotieTokens};
@@ -17,7 +17,6 @@ struct Card {
     price: String,
     published: String,
     size: f32,
-    sizeLot: u32,
     status: u8,
 }
 
@@ -67,12 +66,7 @@ async fn fetch_apartments(
         Err(e) => return Err(e),
     };
 
-    let cards = OitkotieCardsApiResponse {
-        found: api_response.found,
-        cards: api_response.cards,
-    };
-
-    return Ok(cards);
+    return Ok(api_response);
 }
 
 impl OikotieClient {
@@ -88,7 +82,6 @@ impl OikotieClient {
             Err(_e) => Vec::new(),
         };
 
-        println!("{:?}", cards.len());
         let apartmens: Vec<Apartment> = Vec::new();
         apartmens
     }
