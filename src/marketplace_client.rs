@@ -1,9 +1,11 @@
+#[derive(Debug)]
 pub struct Location {
     pub id: u16,
     pub level: u8,
     pub name: String,
 }
 
+#[derive(Debug)]
 pub struct Apartment {
     pub id: Box<str>,
     pub location: Location,

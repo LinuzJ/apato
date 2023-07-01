@@ -18,9 +18,8 @@ async fn index() -> String {
     };
     let apartments: Vec<marketplace_client::Apartment> =
         oikotie_client.get_apartments(location).await;
-
-    let to_return = &apartments[0].id;
-    to_return.to_string()
+    println!("{:?}", apartments);
+    String::from("oogalaboogala")
 }
 
 #[rocket::main]
