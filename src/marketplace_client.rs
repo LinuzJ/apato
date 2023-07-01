@@ -14,8 +14,6 @@ pub struct Apartment {
 }
 
 pub trait MarketplaceClient {
-    fn set_tokens(self);
-
     // Fetch apartments from given location and parse them into vector
     fn get_apartments(self, location: Location) -> Vec<Apartment>;
 }

@@ -5,14 +5,11 @@ mod helpers;
 mod marketplace_client;
 mod oikotie_client;
 mod tokens;
-
 use oikotie_client::OikotieClient;
-use tokens::get_tokens;
 
 #[get("/")]
 async fn index() -> String {
-    let tokens = get_tokens();
-    let oikotie_client: OikotieClient = OikotieClient { tokens: &tokens };
+    let oikotie_client: OikotieClient = OikotieClient { tokens: None };
     String::from("abc")
 }
 

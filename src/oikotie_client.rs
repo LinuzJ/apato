@@ -30,7 +30,7 @@ struct OitkotieCardsApiResponse {
 }
 
 pub struct OikotieClient<'a> {
-    pub tokens: &'a OikotieTokens<'a>,
+    pub tokens: Option<OikotieTokens<'a>>,
 }
 
 fn fetch_apartments(
@@ -76,13 +76,13 @@ fn fetch_apartments(
     return Ok(cards);
 }
 
-impl MarketplaceClient for OikotieClient<'_> {
-    fn set_tokens(mut self) {
-        self.tokens = &get_tokens();
-    }
-
+impl MarketplaceClient for OikotieClient<'static> {
     fn get_apartments(mut self, location: Location) -> Vec<Apartment> {
-        let cards_response = fetch_apartments(self.tokens, location);
+        if self.tokens.is_none() {
+            self.tokens = Some(get_tokens());
+        }
+
+        let cards_response = fetch_apartments(&self.tokens.unwrap(), location);
 
         let cards: Vec<Card> = match cards_response {
             Ok(c) => c.cards,
