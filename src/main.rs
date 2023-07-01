@@ -5,7 +5,7 @@ mod helpers;
 mod marketplace_client;
 mod oikotie_client;
 mod tokens;
-use marketplace_client::{Location, MarketplaceClient};
+use marketplace_client::{Apartment, Location};
 use oikotie_client::OikotieClient;
 
 #[get("/")]
@@ -16,8 +16,11 @@ async fn index() -> String {
         level: 4,
         name: String::from("Etu-Töölö"),
     };
-    oikotie_client.get_apartments(location).await;
-    String::from("abc")
+    let apartments: Vec<marketplace_client::Apartment> =
+        oikotie_client.get_apartments(location).await;
+
+    let to_return = &apartments[0].id;
+    to_return.to_string()
 }
 
 #[rocket::main]

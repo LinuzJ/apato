@@ -5,9 +5,9 @@ use crate::helpers::generate_random_number;
 
 #[derive(Debug, Deserialize)]
 struct User {
-    cuid: Box<str>,
-    token: Box<str>,
-    time: Box<str>,
+    cuid: String,
+    token: String,
+    time: u32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -16,9 +16,9 @@ struct ApiResponse {
 }
 
 pub struct OikotieTokens {
-    pub loaded: Box<Box<str>>,
-    pub cuid: Box<Box<str>>,
-    pub token: Box<Box<str>>,
+    pub loaded: String,
+    pub cuid: String,
+    pub token: String,
 }
 
 async fn fetch_tokens() -> Result<Box<OikotieTokens>, reqwest::Error> {
@@ -43,23 +43,19 @@ async fn fetch_tokens() -> Result<Box<OikotieTokens>, reqwest::Error> {
     };
 
     let tokens: Box<OikotieTokens> = Box::new(OikotieTokens {
-        loaded: Box::new(api_response.user.time),
-        cuid: Box::new(api_response.user.cuid.to_owned()),
-        token: Box::new(api_response.user.token.to_owned()),
+        loaded: api_response.user.time.to_string(),
+        cuid: api_response.user.cuid,
+        token: api_response.user.token,
     });
 
     Ok(tokens)
 }
 
-pub async fn get_tokens() -> Box<OikotieTokens> {
+pub async fn get_tokens() -> Option<Box<OikotieTokens>> {
     let tokens: Result<Box<OikotieTokens>, reqwest::Error> = fetch_tokens().await;
 
     return match tokens {
-        Ok(tokens) => tokens,
-        Err(_e) => Box::new(OikotieTokens {
-            loaded: todo!(),
-            cuid: todo!(),
-            token: todo!(),
-        }),
+        Ok(tokens) => Some(tokens),
+        Err(_e) => None,
     };
 }

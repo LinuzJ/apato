@@ -5,7 +5,7 @@ pub struct Location {
 }
 
 pub struct Apartment {
-    pub id: String,
+    pub id: Box<str>,
     pub location: Location,
     pub size: u16,
     pub rooms: u16,

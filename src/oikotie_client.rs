@@ -78,7 +78,7 @@ async fn fetch_apartments(
 impl OikotieClient {
     pub async fn get_apartments(mut self, location: Location) -> Vec<Apartment> {
         if self.tokens.is_none() {
-            self.tokens = Some(get_tokens().await);
+            self.tokens = get_tokens().await;
         }
 
         let cards_response = fetch_apartments(&self.tokens.unwrap(), location).await;
