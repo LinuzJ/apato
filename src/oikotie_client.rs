@@ -31,13 +31,13 @@ pub struct OikotieClient {
     pub tokens: Option<Box<OikotieTokens>>,
 }
 
-fn fetch_apartments(
+async fn fetch_apartments(
     tokens: &OikotieTokens,
     location: Location,
 ) -> Result<OitkotieCardsApiResponse, reqwest::Error> {
     let oikotie_cards_api_url = "https://asunnot.oikotie.fi/api/cards";
 
-    let client: reqwest::blocking::Client = reqwest::blocking::Client::new();
+    let client: reqwest::Client = reqwest::Client::new();
     let locations: String = create_location_string(location.id, location.level, location.name);
     let params: Vec<(&str, &str)> = vec![("ApartmentType", "100"), ("locations", &locations)];
     let mut headers: HeaderMap = HeaderMap::new();
@@ -59,10 +59,11 @@ fn fetch_apartments(
         .get(oikotie_cards_api_url)
         .query(&params)
         .headers(headers)
-        .send();
+        .send()
+        .await;
 
     let api_response: OitkotieCardsApiResponse = match response {
-        Ok(re) => re.json()?,
+        Ok(re) => re.json().await?,
         Err(e) => return Err(e),
     };
 
@@ -74,13 +75,13 @@ fn fetch_apartments(
     return Ok(cards);
 }
 
-impl MarketplaceClient for OikotieClient {
-    fn get_apartments(mut self, location: Location) -> Vec<Apartment> {
+impl OikotieClient {
+    pub async fn get_apartments(mut self, location: Location) -> Vec<Apartment> {
         if self.tokens.is_none() {
-            self.tokens = Some(get_tokens());
+            self.tokens = Some(get_tokens().await);
         }
 
-        let cards_response = fetch_apartments(&self.tokens.unwrap(), location);
+        let cards_response = fetch_apartments(&self.tokens.unwrap(), location).await;
 
         let cards: Vec<Card> = match cards_response {
             Ok(c) => c.cards,
@@ -92,11 +93,3 @@ impl MarketplaceClient for OikotieClient {
         apartmens
     }
 }
-
-// What do I need
-// https://asunnot.oikotie.fi/api/cards?ApartmentType=100&locations=[[1652,4,"Taka-Töölö, Helsinki"]]
-
-// Client needs to be able to:
-// Search for apartments -> cards, type 100, location specified
-// Fetch data for the found apartments
-// Return that data

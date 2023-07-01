@@ -21,8 +21,8 @@ pub struct OikotieTokens {
     pub token: Box<Box<str>>,
 }
 
-fn fetch_tokens() -> Result<Box<OikotieTokens>, reqwest::Error> {
-    let client: reqwest::blocking::Client = reqwest::blocking::Client::new();
+async fn fetch_tokens() -> Result<Box<OikotieTokens>, reqwest::Error> {
+    let client: reqwest::Client = reqwest::Client::new();
 
     let num: String = generate_random_number();
     let params: Vec<(&str, &str)> = vec![("format", "json"), ("rand", &num)];
@@ -30,14 +30,15 @@ fn fetch_tokens() -> Result<Box<OikotieTokens>, reqwest::Error> {
     let mut headers: HeaderMap = HeaderMap::new();
     headers.insert("user-agent", HeaderValue::from_static("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"));
 
-    let response: Result<reqwest::blocking::Response, reqwest::Error> = client
+    let response: Result<reqwest::Response, reqwest::Error> = client
         .get("https://asunnot.oikotie.fi/user/get")
         .query(&params)
         .headers(headers)
-        .send();
+        .send()
+        .await;
 
     let api_response: ApiResponse = match response {
-        Ok(re) => re.json()?,
+        Ok(re) => re.json().await?,
         Err(e) => return Err(e),
     };
 
@@ -50,8 +51,8 @@ fn fetch_tokens() -> Result<Box<OikotieTokens>, reqwest::Error> {
     Ok(tokens)
 }
 
-pub fn get_tokens() -> Box<OikotieTokens> {
-    let tokens: Result<Box<OikotieTokens>, reqwest::Error> = fetch_tokens();
+pub async fn get_tokens() -> Box<OikotieTokens> {
+    let tokens: Result<Box<OikotieTokens>, reqwest::Error> = fetch_tokens().await;
 
     return match tokens {
         Ok(tokens) => tokens,
