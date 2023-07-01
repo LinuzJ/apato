@@ -7,11 +7,11 @@ pub struct Location {
 
 #[derive(Debug)]
 pub struct Apartment {
-    pub id: Box<str>,
+    pub id: String,
     pub location: Location,
     pub size: u16,
     pub rooms: u16,
-    pub price: u16,
+    pub price: String,
     pub additional_costs: u16,
 }
 

@@ -30,6 +30,21 @@ pub struct OikotieClient {
     pub tokens: Option<Box<OikotieTokens>>,
 }
 
+fn card_into_apartment(card: &Card) -> Apartment {
+    Apartment {
+        id: card.id.to_string(),
+        location: Location {
+            id: 123,
+            level: 123,
+            name: String::from("TODO"),
+        },
+        size: card.size as u16,
+        rooms: card.rooms as u16,
+        price: card.price.to_owned(),
+        additional_costs: 0,
+    }
+}
+
 async fn fetch_apartments(
     tokens: &OikotieTokens,
     location: Location,
@@ -82,7 +97,7 @@ impl OikotieClient {
             Err(_e) => Vec::new(),
         };
 
-        let apartmens: Vec<Apartment> = Vec::new();
+        let apartmens: Vec<Apartment> = cards.iter().map(card_into_apartment).collect();
         apartmens
     }
 }
