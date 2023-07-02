@@ -1,3 +1,5 @@
+use std::fmt::format;
+
 use crate::helpers;
 use crate::marketplace_client;
 use crate::marketplace_client::Apartment;
@@ -5,6 +7,7 @@ use crate::tokens;
 use helpers::create_location_string;
 use marketplace_client::Location;
 use reqwest::header::{HeaderMap, HeaderValue};
+use rocket::futures;
 use serde::{Deserialize, Serialize};
 use tokens::{get_tokens, OikotieTokens};
 
@@ -14,10 +17,30 @@ struct Card {
     url: String,
     description: String,
     rooms: u8,
-    price: String,
     published: String,
     size: f32,
     status: u8,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Price {
+    Myyntihinta: String,
+    Rahoitusvastike: String,
+    Hoitovastike: String,
+    Yhtiövastike: String,
+    Velkaosuus: String,
+}
+
+impl Price {
+    fn empty() -> Price {
+        Price {
+            Myyntihinta: String::from(""),
+            Rahoitusvastike: String::from(""),
+            Hoitovastike: String::from(""),
+            Yhtiövastike: String::from(""),
+            Velkaosuus: String::from(""),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -26,23 +49,55 @@ struct OitkotieCardsApiResponse {
     cards: Vec<Card>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct OitkotieCardApiResponse {
+    id: String,
+    price: u16,
+    size: f32,
+    roomConfiguration: String,
+    priceData: Price,
+}
+
+#[derive(Debug)]
 pub struct OikotieClient {
     pub tokens: Option<Box<OikotieTokens>>,
 }
 
-fn card_into_apartment(card: &Card) -> Apartment {
-    Apartment {
-        id: card.id.to_string(),
-        location: Location {
-            id: 123,
-            level: 123,
-            name: String::from("TODO"),
-        },
-        size: card.size as u16,
-        rooms: card.rooms as u16,
-        price: card.price.to_owned(),
-        additional_costs: 0,
-    }
+async fn fetch_card(
+    tokens: &OikotieTokens,
+    card_id: String,
+) -> Result<OitkotieCardApiResponse, reqwest::Error> {
+    let mut oikotie_cards_api_url = String::from("https://asunnot.oikotie.fi/api/card/");
+    oikotie_cards_api_url.push_str(&card_id.to_owned());
+
+    let client: reqwest::Client = reqwest::Client::new();
+    let mut headers: HeaderMap = HeaderMap::new();
+
+    match HeaderValue::from_str(&tokens.loaded) {
+        Ok(loaded) => headers.insert("ota-loaded", loaded),
+        Err(_e) => todo!(),
+    };
+    match HeaderValue::from_str(&tokens.cuid) {
+        Ok(cuid) => headers.insert("ota-cuid", cuid),
+        Err(_e) => todo!(),
+    };
+    match HeaderValue::from_str(&tokens.token) {
+        Ok(token) => headers.insert("ota-token", token),
+        Err(_e) => todo!(),
+    };
+
+    let response = client
+        .get(oikotie_cards_api_url)
+        .headers(headers)
+        .send()
+        .await;
+
+    let api_response: OitkotieCardApiResponse = match response {
+        Ok(re) => re.json().await?,
+        Err(e) => return Err(e),
+    };
+
+    return Ok(api_response);
 }
 
 async fn fetch_apartments(
@@ -95,19 +150,61 @@ impl OikotieClient {
         }
     }
 
-    pub async fn get_apartments(mut self, location: Location) -> Vec<Apartment> {
+    async fn card_into_apartment(&self, card: &Card) -> Apartment {
+        let card_data = match fetch_card(&self.tokens.as_ref().unwrap(), card.id.to_string()).await
+        {
+            Ok(c) => c,
+            Err(_e) => OitkotieCardApiResponse {
+                id: String::from(""),
+                price: 0,
+                size: 0.0,
+                roomConfiguration: String::from(""),
+                priceData: Price::empty(),
+            },
+        };
+        Apartment {
+            id: card.id.to_string(),
+            location: Location {
+                id: 123,
+                level: 123,
+                name: String::from("TODO"),
+            },
+            size: card.size,
+            rooms: card.rooms as u16,
+            price: card_data.price.to_string(),
+            additional_costs: 0,
+        }
+    }
+
+    /// Fetches apartments in the given location
+    ///
+    /// # Arguments
+    ///
+    /// * `locations` - Location object that describes a area according to Oikotie API standards
+    /// * `get_rentals` - Get apartments for sale or rentals
+    ///     
+    pub async fn get_apartments(mut self, location: Location, get_rentals: bool) -> Vec<Apartment> {
         if self.tokens.is_none() {
             self.tokens = get_tokens().await;
         }
 
-        let cards_response = fetch_apartments(&self.tokens.unwrap(), location, true).await;
+        let cards_response: Result<OitkotieCardsApiResponse, reqwest::Error> =
+            fetch_apartments(&self.tokens.as_ref().unwrap(), location, get_rentals).await;
 
-        let cards: Vec<Card> = match cards_response {
+        let mut cards = match cards_response {
             Ok(c) => c.cards,
             Err(_e) => Vec::new(),
         };
+        let mut cards_iter = cards.iter();
 
-        let apartmens: Vec<Apartment> = cards.iter().map(card_into_apartment).collect();
-        apartmens
+        let mut apartments: Vec<Apartment> = Vec::new();
+
+        while cards_iter.next().is_some() {
+            let cards: Option<&Card> = cards_iter.next();
+            let apartment = self.card_into_apartment(cards.unwrap()).await;
+            apartments.push(apartment);
+        }
+
+        apartments
     }
 }

@@ -9,7 +9,7 @@ pub struct Location {
 pub struct Apartment {
     pub id: String,
     pub location: Location,
-    pub size: u16,
+    pub size: f32,
     pub rooms: u16,
     pub price: String,
     pub additional_costs: u16,
