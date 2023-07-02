@@ -10,7 +10,7 @@ use oikotie_client::OikotieClient;
 
 #[get("/")]
 async fn index() -> String {
-    let oikotie_client: OikotieClient = OikotieClient { tokens: None };
+    let oikotie_client: OikotieClient = OikotieClient::new().await;
     let location: Location = Location {
         id: 1645,
         level: 4,

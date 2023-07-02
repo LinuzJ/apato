@@ -48,12 +48,16 @@ fn card_into_apartment(card: &Card) -> Apartment {
 async fn fetch_apartments(
     tokens: &OikotieTokens,
     location: Location,
+    get_rentals: bool,
 ) -> Result<OitkotieCardsApiResponse, reqwest::Error> {
     let oikotie_cards_api_url = "https://asunnot.oikotie.fi/api/cards";
 
     let client: reqwest::Client = reqwest::Client::new();
     let locations: String = create_location_string(location.id, location.level, location.name);
-    let params: Vec<(&str, &str)> = vec![("ApartmentType", "100"), ("locations", &locations)];
+    let params: Vec<(&str, &str)> = vec![
+        ("ApartmentType", if get_rentals { "101" } else { "100" }),
+        ("locations", &locations),
+    ];
     let mut headers: HeaderMap = HeaderMap::new();
 
     match HeaderValue::from_str(&tokens.loaded) {
@@ -85,12 +89,18 @@ async fn fetch_apartments(
 }
 
 impl OikotieClient {
+    pub async fn new() -> OikotieClient {
+        OikotieClient {
+            tokens: get_tokens().await,
+        }
+    }
+
     pub async fn get_apartments(mut self, location: Location) -> Vec<Apartment> {
         if self.tokens.is_none() {
             self.tokens = get_tokens().await;
         }
 
-        let cards_response = fetch_apartments(&self.tokens.unwrap(), location).await;
+        let cards_response = fetch_apartments(&self.tokens.unwrap(), location, true).await;
 
         let cards: Vec<Card> = match cards_response {
             Ok(c) => c.cards,
