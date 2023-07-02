@@ -10,7 +10,8 @@ use oikotie_client::OikotieClient;
 
 #[get("/")]
 async fn index() -> String {
-    let mut oikotie_client: OikotieClient = OikotieClient::new().await;
+    let oikotie_client: OikotieClient = OikotieClient::new().await;
+
     let location: Location = Location {
         id: 1645,
         level: 4,
@@ -19,6 +20,7 @@ async fn index() -> String {
 
     let apartments: Vec<marketplace_client::Apartment> =
         oikotie_client.get_apartments(location, false).await;
+
     println!("{:?}", apartments);
     String::from("oogalaboogala")
 }
