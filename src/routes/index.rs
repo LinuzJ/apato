@@ -1,4 +1,6 @@
+use rocket::get;
+
 #[get("/")]
-pub async fn index() -> String {
+pub fn index() -> String {
     String::from("oogalaboogala")
 }

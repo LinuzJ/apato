@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::modules::helpers;
 use crate::modules::marketplace_client;
 use crate::modules::marketplace_client::Apartment;
@@ -5,6 +7,7 @@ use crate::modules::tokens;
 use helpers::create_location_string;
 use marketplace_client::Location;
 use reqwest::header::{HeaderMap, HeaderValue};
+use rocket::tokio::time;
 use serde::{Deserialize, Serialize};
 use tokens::{get_tokens, OikotieTokens};
 
@@ -176,6 +179,9 @@ impl OikotieClient {
         if self.tokens.is_none() {
             self.tokens = get_tokens().await;
         }
+
+        let mut interval = time::interval(Duration::from_secs(60));
+        interval.tick().await;
 
         let cards_response: Result<OitkotieCardsApiResponse, reqwest::Error> =
             fetch_apartments(&self.tokens.as_ref().unwrap(), location, get_rentals).await;

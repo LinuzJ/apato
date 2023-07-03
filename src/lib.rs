@@ -1,25 +1,15 @@
 #[macro_use]
 extern crate rocket;
-use modules::producer;
-use rocket::serde::json::{json, Value};
-use rocket::{Build, Rocket};
 
 mod modules;
 mod routes;
 
-#[catch(404)]
-fn not_found() -> Value {
-    json!({
-        "status": "error",
-        "reason": "Resource was not found."
-    })
-}
+use modules::producer::Producer;
+use rocket::{Build, Rocket};
 
 #[launch]
 pub async fn rocket() -> Rocket<Build> {
-    let _ = producer::run().await;
+    Producer::run().await;
 
-    rocket::build()
-        .mount("/", routes![routes::index::index])
-        .register(".", catchers![not_found])
+    rocket::build().mount("/", routes![routes::index::index])
 }

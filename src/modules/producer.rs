@@ -4,26 +4,28 @@ use std::time::Duration;
 
 use rocket::tokio::{self, time};
 
-pub async fn run() {
-    tokio::spawn(async move {
-        let mut interval = time::interval(Duration::from_secs(30));
-        println!("Here I am");
+pub struct Producer {}
 
-        loop {
-            println!("New loop");
-            let oikotie_client: OikotieClient = OikotieClient::new().await;
+impl Producer {
+    pub async fn run() {
+        tokio::spawn(async {
+            let mut interval = time::interval(Duration::from_secs(60));
 
-            let location: Location = Location {
-                id: 1645,
-                level: 4,
-                name: String::from("Ullanlinna"),
-            };
+            loop {
+                let oikotie_client: OikotieClient = OikotieClient::new().await;
 
-            let apartments: Vec<marketplace_client::Apartment> =
-                oikotie_client.get_apartments(location, false).await;
+                let location: Location = Location {
+                    id: 1645,
+                    level: 4,
+                    name: String::from("Ullanlinna"),
+                };
 
-            println!("{:?}", apartments);
-            interval.tick().await;
-        }
-    });
+                let apartments: Vec<marketplace_client::Apartment> =
+                    oikotie_client.get_apartments(location, false).await;
+
+                println!("{:?}", apartments);
+                interval.tick().await;
+            }
+        });
+    }
 }

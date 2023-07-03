@@ -25,6 +25,8 @@ pub struct OikotieTokens {
 async fn fetch_tokens() -> Result<Box<OikotieTokens>, reqwest::Error> {
     let client: reqwest::Client = reqwest::Client::new();
 
+    println!("Fetching tokens!");
+
     let num: String = generate_random_number();
     let params: Vec<(&str, &str)> = vec![("format", "json"), ("rand", &num)];
 

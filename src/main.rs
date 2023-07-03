@@ -1,7 +1,8 @@
-use apato;
+mod routes;
 use rocket;
 
 #[rocket::main]
-async fn main() {
-    let _ = apato::rocket().await.launch().await;
+async fn main() -> Result<(), rocket::Error> {
+    let _rocket = apato::rocket().await.launch().await?;
+    Ok(())
 }
