@@ -1,7 +1,7 @@
-use crate::helpers;
-use crate::marketplace_client;
-use crate::marketplace_client::Apartment;
-use crate::tokens;
+use crate::modules::helpers;
+use crate::modules::marketplace_client;
+use crate::modules::marketplace_client::Apartment;
+use crate::modules::tokens;
 use helpers::create_location_string;
 use marketplace_client::Location;
 use reqwest::header::{HeaderMap, HeaderValue};
@@ -172,13 +172,6 @@ impl OikotieClient {
         }
     }
 
-    /// Fetches apartments in the given location
-    ///
-    /// # Arguments
-    ///
-    /// * `locations` - Location object that describes a area according to Oikotie API standards
-    /// * `get_rentals` - Get apartments for sale or rentals
-    ///     
     pub async fn get_apartments(mut self, location: Location, get_rentals: bool) -> Vec<Apartment> {
         if self.tokens.is_none() {
             self.tokens = get_tokens().await;
