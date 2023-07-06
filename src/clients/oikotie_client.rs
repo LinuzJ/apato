@@ -161,7 +161,7 @@ async fn card_into_apartment(tokens: &OikotieTokens, card: &Card) -> Apartment {
         location_id: 123,
         location_level: 123,
         location_name: String::from("TODO"),
-        size: card.size as f32,
+        size: card.size as f64,
         rooms: card.rooms as i32,
         price: card_data.price.to_string(),
         additional_costs: 0,
