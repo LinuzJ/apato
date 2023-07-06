@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use crate::modules::helpers;
 use crate::modules::marketplace_client;
 use crate::modules::marketplace_client::Apartment;
@@ -7,7 +5,6 @@ use crate::modules::tokens;
 use helpers::create_location_string;
 use marketplace_client::Location;
 use reqwest::header::{HeaderMap, HeaderValue};
-use rocket::tokio::time;
 use serde::{Deserialize, Serialize};
 use tokens::{get_tokens, OikotieTokens};
 
@@ -67,12 +64,12 @@ async fn fetch_card(
     tokens: &OikotieTokens,
     card_id: String,
 ) -> Result<OitkotieCardApiResponse, reqwest::Error> {
+    let client: reqwest::Client = reqwest::Client::new();
+
     let mut oikotie_cards_api_url = String::from("https://asunnot.oikotie.fi/api/card/");
     oikotie_cards_api_url.push_str(&card_id.to_owned());
 
-    let client: reqwest::Client = reqwest::Client::new();
     let mut headers: HeaderMap = HeaderMap::new();
-
     match HeaderValue::from_str(&tokens.loaded) {
         Ok(loaded) => headers.insert("ota-loaded", loaded),
         Err(_e) => todo!(),
@@ -110,7 +107,7 @@ async fn fetch_apartments(
     let client: reqwest::Client = reqwest::Client::new();
     let locations: String = create_location_string(location.id, location.level, location.name);
     let params: Vec<(&str, &str)> = vec![
-        ("ApartmentType", if get_rentals { "101" } else { "100" }),
+        ("cardType", if get_rentals { "101" } else { "100" }),
         ("locations", &locations),
     ];
     let mut headers: HeaderMap = HeaderMap::new();
@@ -180,9 +177,6 @@ impl OikotieClient {
             self.tokens = get_tokens().await;
         }
 
-        let mut interval = time::interval(Duration::from_secs(60));
-        interval.tick().await;
-
         let cards_response: Result<OitkotieCardsApiResponse, reqwest::Error> =
             fetch_apartments(&self.tokens.as_ref().unwrap(), location, get_rentals).await;
 
@@ -190,8 +184,8 @@ impl OikotieClient {
             Ok(c) => c.cards,
             Err(_e) => Vec::new(),
         };
-        let mut cards_iter = cards.iter();
 
+        let mut cards_iter = cards.iter();
         let mut apartments: Vec<Apartment> = Vec::new();
 
         while let Some(card) = cards_iter.next() {

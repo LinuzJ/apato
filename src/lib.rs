@@ -11,5 +11,5 @@ use rocket::{Build, Rocket};
 pub async fn rocket() -> Rocket<Build> {
     Producer::run().await;
 
-    rocket::build().mount("/", routes![routes::index::index])
+    rocket::build().mount("/api", routes![routes::index::index])
 }
