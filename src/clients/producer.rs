@@ -1,4 +1,7 @@
-use crate::clients::oikotie_client::{Apartment, Location, OikotieClient};
+use crate::{
+    clients::oikotie_client::{Location, OikotieClient},
+    modules::apartment::Apartment,
+};
 use std::time::Duration;
 
 use rocket::tokio::{self, time};

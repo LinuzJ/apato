@@ -1,5 +1,6 @@
 use crate::clients::helpers;
 use crate::clients::tokens;
+use crate::modules::apartment::Apartment;
 use helpers::create_location_string;
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::{Deserialize, Serialize};
@@ -10,16 +11,6 @@ pub struct Location {
     pub id: u16,
     pub level: u8,
     pub name: String,
-}
-
-#[derive(Debug)]
-pub struct Apartment {
-    pub id: String,
-    pub location: Location,
-    pub size: f32,
-    pub rooms: u16,
-    pub price: String,
-    pub additional_costs: u16,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -167,13 +158,11 @@ async fn card_into_apartment(tokens: &OikotieTokens, card: &Card) -> Apartment {
     };
     Apartment {
         id: card.id.to_string(),
-        location: Location {
-            id: 123,
-            level: 123,
-            name: String::from("TODO"),
-        },
-        size: card.size,
-        rooms: card.rooms as u16,
+        location_id: 123,
+        location_level: 123,
+        location_name: String::from("TODO"),
+        size: card.size as f32,
+        rooms: card.rooms as i32,
         price: card_data.price.to_string(),
         additional_costs: 0,
     }
@@ -199,7 +188,7 @@ impl OikotieClient {
             Err(_e) => Vec::new(),
         };
 
-        let mut cards_iter = cards.iter();
+        let mut cards_iter: std::slice::Iter<'_, Card> = cards.iter();
         let mut apartments: Vec<Apartment> = Vec::new();
 
         while let Some(card) = cards_iter.next() {
