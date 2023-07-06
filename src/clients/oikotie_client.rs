@@ -1,12 +1,26 @@
 use crate::clients::helpers;
-use crate::clients::marketplace_client;
-use crate::clients::marketplace_client::Apartment;
 use crate::clients::tokens;
 use helpers::create_location_string;
-use marketplace_client::Location;
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::{Deserialize, Serialize};
 use tokens::{get_tokens, OikotieTokens};
+
+#[derive(Debug)]
+pub struct Location {
+    pub id: u16,
+    pub level: u8,
+    pub name: String,
+}
+
+#[derive(Debug)]
+pub struct Apartment {
+    pub id: String,
+    pub location: Location,
+    pub size: f32,
+    pub rooms: u16,
+    pub price: String,
+    pub additional_costs: u16,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Card {

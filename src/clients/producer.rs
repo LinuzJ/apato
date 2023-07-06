@@ -1,5 +1,4 @@
-use crate::clients::marketplace_client::{self, Location};
-use crate::clients::oikotie_client::OikotieClient;
+use crate::clients::oikotie_client::{Apartment, Location, OikotieClient};
 use std::time::Duration;
 
 use rocket::tokio::{self, time};
@@ -20,7 +19,7 @@ impl Producer {
                     name: String::from("Ullanlinna"),
                 };
 
-                let apartments: Vec<marketplace_client::Apartment> =
+                let apartments: Vec<Apartment> =
                     oikotie_client.get_apartments(location, false).await;
 
                 println!("{:?}", apartments);
