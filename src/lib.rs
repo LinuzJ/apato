@@ -1,10 +1,11 @@
 #[macro_use]
 extern crate rocket;
+extern crate diesel;
 
-mod modules;
+mod clients;
 mod routes;
 
-use modules::producer::Producer;
+use clients::producer::Producer;
 use rocket::{Build, Rocket};
 
 #[launch]

@@ -1,7 +1,7 @@
-use crate::modules::helpers;
-use crate::modules::marketplace_client;
-use crate::modules::marketplace_client::Apartment;
-use crate::modules::tokens;
+use crate::clients::helpers;
+use crate::clients::marketplace_client;
+use crate::clients::marketplace_client::Apartment;
+use crate::clients::tokens;
 use helpers::create_location_string;
 use marketplace_client::Location;
 use reqwest::header::{HeaderMap, HeaderValue};

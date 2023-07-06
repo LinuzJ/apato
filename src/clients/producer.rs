@@ -1,5 +1,5 @@
-use crate::modules::marketplace_client::{self, Location};
-use crate::modules::oikotie_client::OikotieClient;
+use crate::clients::marketplace_client::{self, Location};
+use crate::clients::oikotie_client::OikotieClient;
 use std::time::Duration;
 
 use rocket::tokio::{self, time};
