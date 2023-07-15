@@ -9,13 +9,19 @@ mod modules;
 mod routes;
 
 use clients::producer::Producer;
-use rocket::{Build, Rocket};
+use rocket::{fairing::AdHoc, Build, Rocket};
 
 #[launch]
 pub async fn rocket() -> Rocket<Build> {
-    Producer::run().await;
-
     rocket::build()
         .attach(db::Db::fairing())
+        .attach(AdHoc::on_liftoff(
+            "Background process",
+            |rocket: &Rocket<rocket::Orbit>| {
+                Box::pin(async move {
+                    Producer::run(rocket).await;
+                })
+            },
+        ))
         .mount("/api", routes![routes::index::index])
 }

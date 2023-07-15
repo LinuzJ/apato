@@ -22,6 +22,7 @@ name = "apato"
 version = "0.1.0"
 dependencies = [
  "diesel",
+ "dotenvy",
  "rand",
  "reqwest",
  "rocket",
@@ -238,6 +239,12 @@ checksum = "fc5557efc453706fed5e4fa85006fe9817c224c3f480a34c7e5959fd700921c5"
 dependencies = [
  "syn",
 ]
+
+[[package]]
+name = "dotenvy"
+version = "0.15.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
 
 [[package]]
 name = "either"
