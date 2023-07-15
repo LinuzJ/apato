@@ -14,7 +14,7 @@ use rocket::{fairing::AdHoc, Build, Rocket};
 #[launch]
 pub async fn rocket() -> Rocket<Build> {
     rocket::build()
-        .attach(db::Db::fairing())
+        // .attach(db::Db::fairing())
         .attach(AdHoc::on_liftoff(
             "Background process",
             |rocket: &Rocket<rocket::Orbit>| {

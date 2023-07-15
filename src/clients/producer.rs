@@ -13,6 +13,8 @@ impl Producer {
     pub async fn run(rocket: &Rocket<rocket::Orbit>) {
         let mut interval = time::interval(Duration::from_secs(60));
 
+        db::establish_connection();
+
         loop {
             let mut db: Db = Db::get_one(rocket).await.unwrap();
             let oikotie_client: OikotieClient = OikotieClient::new().await;
