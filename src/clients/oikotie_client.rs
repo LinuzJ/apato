@@ -145,7 +145,7 @@ async fn fetch_apartments(
     return Ok(api_response);
 }
 
-async fn card_into_apartment(tokens: &OikotieTokens, card: &Card) -> Apartment {
+async fn card_into_complete_apartment(tokens: &OikotieTokens, card: &Card) -> Apartment {
     let card_data = match fetch_card(tokens, card.id.to_string()).await {
         Ok(c) => c,
         Err(_e) => OitkotieCardApiResponse {
@@ -165,6 +165,7 @@ async fn card_into_apartment(tokens: &OikotieTokens, card: &Card) -> Apartment {
         rooms: card.rooms as i32,
         price: card_data.price.to_string(),
         additional_costs: 0,
+        rent: 0,
     }
 }
 
@@ -192,7 +193,8 @@ impl OikotieClient {
         let mut apartments: Vec<Apartment> = Vec::new();
 
         while let Some(card) = cards_iter.next() {
-            let apartment = card_into_apartment(&self.tokens.as_ref().unwrap(), card).await;
+            let apartment =
+                card_into_complete_apartment(&self.tokens.as_ref().unwrap(), card).await;
             apartments.push(apartment);
         }
 

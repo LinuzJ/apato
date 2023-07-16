@@ -6,5 +6,6 @@ CREATE TABLE apartments (
     size FLOAT,
     rooms INT,
     price TEXT,
-    additional_costs INT
+    additional_costs INT,
+    rent INT
 )
