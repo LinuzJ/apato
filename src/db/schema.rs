@@ -10,5 +10,6 @@ diesel::table! {
         rooms -> Nullable<Int4>,
         price -> Nullable<Text>,
         additional_costs -> Nullable<Int4>,
+        rent -> Nullable<Int4>
     }
 }

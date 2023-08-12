@@ -1,0 +1,2 @@
+[default.databases]
+url = "postgresql://apato:apato@localhost:5432/postgres"

@@ -1,22 +1,20 @@
 use crate::{
-    clients::oikotie_client::{Location, OikotieClient},
-    db::{self, Db},
+    db::{self, establish_connection, Db},
     modules::apartment::Apartment,
+    pricing::oikotie_client::{Location, OikotieClient},
 };
 use std::time::Duration;
 
+use diesel::PgConnection;
 use rocket::{tokio::time, Rocket};
 
-pub struct Producer {}
+pub struct PricingProducer {}
 
-impl Producer {
+impl PricingProducer {
     pub async fn run(rocket: &Rocket<rocket::Orbit>) {
         let mut interval = time::interval(Duration::from_secs(60));
 
-        // db::establish_connection();
-
         loop {
-            // let mut db: Db = Db::get_one(rocket).await.unwrap();
             let oikotie_client: OikotieClient = OikotieClient::new().await;
 
             let location: Location = Location {
@@ -27,9 +25,10 @@ impl Producer {
 
             let apartments: Vec<Apartment> = oikotie_client.get_apartments(location, false).await;
 
-            // for ele in apartments {
-            //     db::apartment::insert(&mut *db, ele);
-            // }
+            for ele in apartments {
+                print!("Inserting");
+                db::apartment::insert(&mut establish_connection(), ele);
+            }
             interval.tick().await;
         }
     }
