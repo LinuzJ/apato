@@ -24,22 +24,23 @@ struct Card {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Price {
-    Myyntihinta: String,
-    Rahoitusvastike: String,
-    Hoitovastike: String,
-    Yhtiövastike: String,
-    Velkaosuus: String,
+    myyntihinta: String,
+    rahoitusvastike: String,
+    hoitovastike: String,
+    yhtiövastike: String,
+    velkaosuus: String,
 }
 
 impl Price {
     fn empty() -> Price {
         Price {
-            Myyntihinta: String::from(""),
-            Rahoitusvastike: String::from(""),
-            Hoitovastike: String::from(""),
-            Yhtiövastike: String::from(""),
-            Velkaosuus: String::from(""),
+            myyntihinta: String::from(""),
+            rahoitusvastike: String::from(""),
+            hoitovastike: String::from(""),
+            yhtiövastike: String::from(""),
+            velkaosuus: String::from(""),
         }
     }
 }
@@ -51,12 +52,13 @@ struct OitkotieCardsApiResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct OitkotieCardApiResponse {
     id: String,
     price: u16,
     size: f32,
-    roomConfiguration: String,
-    priceData: Price,
+    room_configuration: String,
+    price_data: Price,
     status: u16,
 }
 
@@ -152,8 +154,8 @@ async fn card_into_complete_apartment(tokens: &OikotieTokens, card: &Card) -> Ap
             id: String::from(""),
             price: 0,
             size: 0.0,
-            roomConfiguration: String::from(""),
-            priceData: Price::empty(),
+            room_configuration: String::from(""),
+            price_data: Price::empty(),
             status: 0,
         },
     };
