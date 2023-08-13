@@ -158,7 +158,7 @@ async fn card_into_complete_apartment(tokens: &OikotieTokens, card: &Card) -> Ap
         },
     };
     Apartment {
-        id: card.id.to_string(),
+        card_id: card.id.to_string(),
         location_id: 123,
         location_level: 123,
         location_name: String::from("TODO"),
@@ -198,7 +198,6 @@ impl OikotieClient {
         let mut apartments: Vec<Apartment> = Vec::new();
 
         while let Some(card) = cards_iter.next() {
-            println!("card: {:?}", card);
             let apartment =
                 card_into_complete_apartment(&self.tokens.as_ref().unwrap(), card).await;
             apartments.push(apartment);

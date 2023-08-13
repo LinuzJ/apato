@@ -36,7 +36,6 @@ fn handle_apartments(potential_apartments: Option<Vec<Apartment>>) {
     match potential_apartments {
         Some(apartments) => {
             for ele in apartments {
-                print!("Inserting");
                 db::apartment::insert(&mut establish_connection(), ele);
             }
         }

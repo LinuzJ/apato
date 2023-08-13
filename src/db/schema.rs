@@ -2,7 +2,8 @@
 
 diesel::table! {
     apartments (id) {
-        id -> Text,
+        id -> Int4,
+        card_id -> Nullable<Text>,
         location_id -> Nullable<Int4>,
         location_level -> Nullable<Int4>,
         location_name -> Nullable<Text>,
@@ -11,5 +12,7 @@ diesel::table! {
         price -> Nullable<Text>,
         additional_costs -> Nullable<Int4>,
         rent -> Nullable<Int4>,
+        created_at -> Timestamptz,
+        updated_at -> Timestamptz,
     }
 }

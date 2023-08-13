@@ -4,7 +4,7 @@ use diesel::{Insertable, Queryable};
 #[derive(Debug, Queryable, Insertable)]
 #[table_name = "apartments"]
 pub struct Apartment {
-    pub id: String,
+    pub card_id: String,
     pub location_id: i32,
     pub location_level: i32,
     pub location_name: String,
