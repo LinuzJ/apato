@@ -18,7 +18,7 @@ struct Card {
     id: u32,
     url: String,
     description: String,
-    rooms: u8,
+    // rooms: f32,
     published: String,
     size: f32,
 }
@@ -57,6 +57,7 @@ struct OitkotieCardApiResponse {
     size: f32,
     roomConfiguration: String,
     priceData: Price,
+    status: u16,
 }
 
 #[derive(Debug)]
@@ -153,6 +154,7 @@ async fn card_into_complete_apartment(tokens: &OikotieTokens, card: &Card) -> Ap
             size: 0.0,
             roomConfiguration: String::from(""),
             priceData: Price::empty(),
+            status: 0,
         },
     };
     Apartment {
@@ -161,7 +163,7 @@ async fn card_into_complete_apartment(tokens: &OikotieTokens, card: &Card) -> Ap
         location_level: 123,
         location_name: String::from("TODO"),
         size: card.size as f64,
-        rooms: card.rooms as i32,
+        // rooms: card.rooms as i32,
         price: card_data.price.to_string(),
         additional_costs: 0,
         rent: 0,
@@ -175,29 +177,33 @@ impl OikotieClient {
         }
     }
 
-    pub async fn get_apartments(mut self, location: Location, get_rentals: bool) -> Vec<Apartment> {
+    pub async fn get_apartments(
+        mut self,
+        location: Location,
+        get_rentals: bool,
+    ) -> Option<Vec<Apartment>> {
         if self.tokens.is_none() {
             self.tokens = get_tokens().await;
         }
 
         let cards_response: Result<OitkotieCardsApiResponse, reqwest::Error> =
             fetch_apartments(&self.tokens.as_ref().unwrap(), location, get_rentals).await;
-        println!("cards_response {:?}", cards_response);
 
         let cards = match cards_response {
             Ok(c) => c.cards,
-            Err(_e) => Vec::new(),
+            Err(_e) => return None,
         };
 
         let mut cards_iter: std::slice::Iter<'_, Card> = cards.iter();
         let mut apartments: Vec<Apartment> = Vec::new();
 
         while let Some(card) = cards_iter.next() {
+            println!("card: {:?}", card);
             let apartment =
                 card_into_complete_apartment(&self.tokens.as_ref().unwrap(), card).await;
             apartments.push(apartment);
         }
 
-        apartments
+        return Some(apartments);
     }
 }

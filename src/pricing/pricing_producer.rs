@@ -1,5 +1,5 @@
 use crate::{
-    db::{self, establish_connection},
+    db::{self, establish_connection, schema::apartments},
     modules::apartment::Apartment,
     pricing::oikotie_client::{Location, OikotieClient},
 };
@@ -23,13 +23,23 @@ impl PricingProducer {
                 name: String::from("Ullanlinna"),
             };
 
-            let apartments: Vec<Apartment> = oikotie_client.get_apartments(location, false).await;
+            let apartments = oikotie_client.get_apartments(location, false).await;
 
+            handle_apartments(apartments);
+
+            interval.tick().await;
+        }
+    }
+}
+
+fn handle_apartments(potential_apartments: Option<Vec<Apartment>>) {
+    match potential_apartments {
+        Some(apartments) => {
             for ele in apartments {
                 print!("Inserting");
                 db::apartment::insert(&mut establish_connection(), ele);
             }
-            interval.tick().await;
         }
+        None => println!("No apartments added.."),
     }
 }
