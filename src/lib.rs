@@ -18,7 +18,7 @@ pub async fn rocket() -> Rocket<Build> {
             "Pricing producer",
             |rocket: &Rocket<rocket::Orbit>| {
                 Box::pin(async move {
-                    PricingProducer::run(rocket).await;
+                    PricingProducer::run().await;
                 })
             },
         ))

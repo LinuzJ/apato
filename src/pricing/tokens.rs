@@ -45,6 +45,8 @@ async fn fetch_tokens() -> Result<Box<OikotieTokens>, reqwest::Error> {
         Err(e) => return Err(e),
     };
 
+    println!("Tokens: {:?}", api_response);
+
     let tokens: Box<OikotieTokens> = Box::new(OikotieTokens {
         loaded: api_response.user.time.to_string(),
         cuid: api_response.user.cuid,

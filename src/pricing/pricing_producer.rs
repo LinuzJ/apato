@@ -1,5 +1,5 @@
 use crate::{
-    db::{self, establish_connection, Db},
+    db::{self, establish_connection},
     modules::apartment::Apartment,
     pricing::oikotie_client::{Location, OikotieClient},
 };
@@ -11,7 +11,7 @@ use rocket::{tokio::time, Rocket};
 pub struct PricingProducer {}
 
 impl PricingProducer {
-    pub async fn run(rocket: &Rocket<rocket::Orbit>) {
+    pub async fn run() {
         let mut interval = time::interval(Duration::from_secs(60));
 
         loop {

@@ -21,7 +21,6 @@ struct Card {
     rooms: u8,
     published: String,
     size: f32,
-    status: u8,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -183,6 +182,7 @@ impl OikotieClient {
 
         let cards_response: Result<OitkotieCardsApiResponse, reqwest::Error> =
             fetch_apartments(&self.tokens.as_ref().unwrap(), location, get_rentals).await;
+        println!("cards_response {:?}", cards_response);
 
         let cards = match cards_response {
             Ok(c) => c.cards,
