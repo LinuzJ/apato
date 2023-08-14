@@ -1,6 +1,6 @@
 use crate::{
     db::{self, establish_connection, schema::apartments},
-    modules::apartment::Apartment,
+    models::apartment::Apartment,
     pricing::oikotie_client::{Location, OikotieClient},
 };
 use std::time::Duration;
@@ -16,6 +16,14 @@ impl PricingProducer {
 
         loop {
             let oikotie_client: OikotieClient = OikotieClient::new().await;
+
+            /*  TODO
+                - get watchlists -> locations
+                - for each location -> calculate prices
+                - insert into apartments table
+                - /api/{watchlist} -> summary of apartments
+                - /api/add_watchlist -> adds watchlist
+            */
 
             let location: Location = Location {
                 id: 1645,

@@ -1,4 +1,4 @@
-use crate::modules::apartment::Apartment;
+use crate::models::apartment::Apartment;
 use crate::pricing::helpers;
 use crate::pricing::tokens;
 use helpers::create_location_string;
@@ -8,8 +8,8 @@ use tokens::{get_tokens, OikotieTokens};
 
 #[derive(Debug)]
 pub struct Location {
-    pub id: u16,
-    pub level: u8,
+    pub id: i32,
+    pub level: i32,
     pub name: String,
 }
 

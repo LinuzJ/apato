@@ -1,6 +1,6 @@
 use rand::Rng;
 
-pub fn create_location_string(id: u16, level: u8, name: String) -> String {
+pub fn create_location_string(id: i32, level: i32, name: String) -> String {
     return format!("[[{:?}, {:?}, {}{}{}]]", id, level, '"', name, '"');
 }
 

@@ -1,5 +1,6 @@
 pub mod apartment;
 pub mod schema;
+pub mod watchlist;
 
 use dotenvy::dotenv;
 use std::{

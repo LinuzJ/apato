@@ -1,10 +1,11 @@
 #[macro_use]
 extern crate rocket;
+extern crate chrono;
 extern crate diesel;
 extern crate rocket_sync_db_pools;
 
 mod db;
-mod modules;
+mod models;
 mod pricing;
 mod routes;
 

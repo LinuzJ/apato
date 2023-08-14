@@ -1,4 +1,4 @@
-use crate::modules::apartment::Apartment;
+use crate::models::apartment::Apartment;
 use diesel::{PgConnection, RunQueryDsl};
 
 use super::schema::apartments;
