@@ -1,7 +1,6 @@
+use super::schema::apartments;
 use crate::models::apartment::Apartment;
 use diesel::{PgConnection, RunQueryDsl};
-
-use super::schema::apartments;
 
 pub fn insert(conn: &mut PgConnection, apartment: Apartment) {
     match diesel::insert_into(apartments::table)

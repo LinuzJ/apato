@@ -1,9 +1,7 @@
-use crate::db::schema::watchlists;
 use chrono::NaiveDateTime;
-use diesel::{Insertable, Queryable};
+use diesel::Queryable;
 
-#[derive(Debug, Queryable, Insertable)]
-#[table_name = "watchlists"]
+#[derive(Debug, Queryable)]
 pub struct Watchlist {
     pub location_id: i32,
     pub location_level: i32,
