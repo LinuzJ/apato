@@ -1,4 +1,4 @@
-use crate::pricing::oikotie_client::Location;
+use crate::oikotie::oikotie_client::Location;
 use diesel::{Insertable, PgConnection, RunQueryDsl};
 
 use super::schema::watchlists;

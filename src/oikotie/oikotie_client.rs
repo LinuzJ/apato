@@ -1,6 +1,7 @@
 use crate::models::apartment::Apartment;
-use crate::pricing::helpers;
-use crate::pricing::tokens;
+use crate::oikotie::helpers;
+use crate::oikotie::tokens;
+
 use helpers::create_location_string;
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::{Deserialize, Serialize};

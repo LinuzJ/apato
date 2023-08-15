@@ -1,7 +1,7 @@
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::Deserialize;
 
-use crate::pricing::helpers::generate_random_number;
+use super::helpers::generate_random_number;
 
 #[derive(Debug, Deserialize)]
 struct User {

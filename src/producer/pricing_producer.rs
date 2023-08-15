@@ -1,7 +1,7 @@
 use crate::{
     db::{self, establish_connection, schema::apartments},
     models::apartment::Apartment,
-    pricing::oikotie_client::{Location, OikotieClient},
+    oikotie::oikotie_client::{Location, OikotieClient},
 };
 use std::time::Duration;
 

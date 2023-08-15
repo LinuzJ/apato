@@ -6,10 +6,11 @@ extern crate rocket_sync_db_pools;
 
 mod db;
 mod models;
-mod pricing;
+mod oikotie;
+mod producer;
 mod routes;
 
-use pricing::pricing_producer::PricingProducer;
+use producer::pricing_producer::PricingProducer;
 use rocket::{fairing::AdHoc, Build, Rocket};
 
 #[launch]
