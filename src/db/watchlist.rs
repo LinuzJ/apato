@@ -1,7 +1,9 @@
 use crate::{models::watchlist::Watchlist, oikotie::oikotie_client::Location};
-use diesel::{query_dsl::select_dsl::SelectDsl, Insertable, PgConnection, RunQueryDsl, Table};
+use diesel::{
+    query_dsl::select_dsl::SelectDsl, result::Error, Insertable, PgConnection, RunQueryDsl, Table,
+};
 
-use super::schema::watchlists;
+use super::{establish_connection, schema::watchlists};
 #[derive(Insertable)]
 #[table_name = "watchlists"]
 pub struct InsertableWatchlist {
@@ -10,7 +12,18 @@ pub struct InsertableWatchlist {
     location_name: String,
 }
 
-pub fn insert(conn: &mut PgConnection, location: Location) {
+pub fn create(location: Location) {
+    let mut connection = establish_connection();
+    insert(&mut connection, location);
+}
+
+pub fn get_all() -> Vec<Watchlist> {
+    let mut connection = establish_connection();
+
+    return get_all_watchlists(&mut connection);
+}
+
+fn insert(conn: &mut PgConnection, location: Location) -> Result<usize, Error> {
     let insertable: &InsertableWatchlist = &InsertableWatchlist {
         location_id: location.id,
         location_level: location.level,
@@ -21,13 +34,19 @@ pub fn insert(conn: &mut PgConnection, location: Location) {
         .values(insertable)
         .execute(conn)
     {
-        Ok(n) => println!("Inserted {:?} rows into watchlist table", n),
-        Err(e) => println!("Error: {:?}", e),
+        Ok(n) => {
+            println!("Inserted {:?} rows into watchlist table", n);
+            return Ok(n);
+        }
+        Err(e) => {
+            println!("Error: {:?}", e);
+            return Err(e);
+        }
     }
 }
 
-pub fn get_all(conn: &mut PgConnection, watchlist_id: i32) -> Vec<Watchlist> {
-    let all_watchlists = watchlists::table
+fn get_all_watchlists(conn: &mut PgConnection) -> Vec<Watchlist> {
+    let all_watchlists: Result<Vec<Watchlist>, diesel::result::Error> = watchlists::table
         .select(watchlists::table::all_columns())
         .load(conn);
 

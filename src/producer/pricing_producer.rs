@@ -1,5 +1,5 @@
 use crate::{
-    db::{self, establish_connection, schema::apartments},
+    db::{self, establish_connection, schema::apartments, watchlist},
     models::apartment::Apartment,
     oikotie::oikotie_client::{Location, OikotieClient},
 };
@@ -15,8 +15,6 @@ impl PricingProducer {
         let mut interval = time::interval(Duration::from_secs(60));
 
         loop {
-            let oikotie_client: OikotieClient = OikotieClient::new().await;
-
             /*  TODO
                 - get watchlists -> locations
                 - for each location -> calculate prices
@@ -25,15 +23,28 @@ impl PricingProducer {
                 - /api/add_watchlist -> adds watchlist
             */
 
-            let location: Location = Location {
+            let new_location: Location = Location {
                 id: 1645,
                 level: 4,
                 name: String::from("Ullanlinna"),
             };
 
-            let apartments = oikotie_client.get_apartments(location, false).await;
+            watchlist::create(new_location);
 
-            handle_apartments(apartments);
+            let watchlists = watchlist::get_all();
+
+            for watchlist in watchlists {
+                let oikotie_client: OikotieClient = OikotieClient::new().await;
+
+                let location: Location = Location {
+                    id: watchlist.id,
+                    level: watchlist.location_level,
+                    name: watchlist.location_name,
+                };
+                let apartments = oikotie_client.get_apartments(location, false).await;
+
+                handle_apartments(apartments);
+            }
 
             interval.tick().await;
         }
