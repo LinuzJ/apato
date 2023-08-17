@@ -3,6 +3,7 @@ use crate::{
     models::apartment::Apartment,
     oikotie::oikotie_client::{Location, OikotieClient},
 };
+use log::info;
 use std::time::Duration;
 
 use diesel::PgConnection;
@@ -11,7 +12,7 @@ use rocket::{tokio::time, Rocket};
 pub struct PricingProducer {}
 
 impl PricingProducer {
-    pub async fn run() {
+    pub async fn run() -> ! {
         let mut interval = time::interval(Duration::from_secs(60));
 
         loop {
@@ -22,6 +23,7 @@ impl PricingProducer {
                 - /api/{watchlist} -> summary of apartments
                 - /api/add_watchlist -> adds watchlist
             */
+            info!("Starting PricingProducer run");
 
             let new_location: Location = Location {
                 id: 1645,
@@ -34,6 +36,11 @@ impl PricingProducer {
             let watchlists = watchlist::get_all();
 
             for watchlist in watchlists {
+                info!(
+                    "Starting calculating prices for watchlist_id: {:?}",
+                    watchlist.id
+                );
+
                 let oikotie_client: OikotieClient = OikotieClient::new().await;
 
                 let location: Location = Location {
@@ -44,8 +51,14 @@ impl PricingProducer {
                 let apartments = oikotie_client.get_apartments(location, false).await;
 
                 handle_apartments(apartments);
+
+                info!(
+                    "Finished price calculations for watchlist_id: {:?}",
+                    watchlist.id
+                );
             }
 
+            info!("Finished PricingProducer run");
             interval.tick().await;
         }
     }
