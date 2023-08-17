@@ -1,6 +1,6 @@
 use crate::{
     db::{self, establish_connection, schema::apartments, watchlist},
-    models::apartment::Apartment,
+    models::{apartment::Apartment, watchlist::Watchlist},
     oikotie::oikotie_client::{Location, OikotieClient},
 };
 use log::info;
