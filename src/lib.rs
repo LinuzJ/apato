@@ -17,8 +17,10 @@ use rocket::{fairing::AdHoc, Build, Rocket};
 
 #[launch]
 pub async fn rocket() -> Rocket<Build> {
-    setup_logger();
+    // Initialize logger
+    let _ = setup_logger();
 
+    // Initialize Rocket app
     rocket::build()
         .attach(AdHoc::on_liftoff(
             "Pricing producer",

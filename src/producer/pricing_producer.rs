@@ -1,13 +1,12 @@
 use crate::{
-    db::{self, establish_connection, schema::apartments, watchlist},
-    models::{apartment::Apartment, watchlist::Watchlist},
+    db::{self, establish_connection, watchlist},
+    models::apartment::Apartment,
     oikotie::oikotie_client::{Location, OikotieClient},
 };
 use log::info;
 use std::time::Duration;
 
-use diesel::PgConnection;
-use rocket::{tokio::time, Rocket};
+use rocket::tokio::time;
 
 pub struct PricingProducer {}
 
@@ -17,12 +16,12 @@ impl PricingProducer {
 
         loop {
             /*  TODO
-                - get watchlists -> locations
-                - for each location -> calculate prices
-                - insert into apartments table
-                - /api/{watchlist} -> summary of apartments
-                - /api/add_watchlist -> adds watchlist
-            */
+             *    - get watchlists -> locations
+             *    - for each location -> calculate prices
+             *    - insert into apartments table
+             *    - /api/{watchlist} -> summary of apartments
+             *    - /api/add_watchlist -> adds watchlist
+             */
             info!("Starting PricingProducer run");
 
             let new_location: Location = Location {
