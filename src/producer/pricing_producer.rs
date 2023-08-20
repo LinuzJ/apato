@@ -42,12 +42,9 @@ impl PricingProducer {
 
                 let oikotie_client: OikotieClient = OikotieClient::new().await;
 
-                let location: Location = Location {
-                    id: watchlist.id,
-                    level: watchlist.location_level,
-                    name: watchlist.location_name,
-                };
-                let apartments = oikotie_client.get_apartments(location, false).await;
+                let apartments = oikotie_client
+                    .get_apartments(watchlist.clone(), false)
+                    .await;
 
                 handle_apartments(apartments);
 

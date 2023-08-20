@@ -13,4 +13,5 @@ pub struct Apartment {
     pub price: String,
     pub additional_costs: i32,
     pub rent: i32,
+    pub watchlist_id: i32,
 }

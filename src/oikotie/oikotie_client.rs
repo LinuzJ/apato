@@ -1,4 +1,6 @@
+use crate::db::schema::apartments::watchlist_id;
 use crate::models::apartment::Apartment;
+use crate::models::watchlist::Watchlist;
 use crate::oikotie::helpers;
 use crate::oikotie::tokens;
 
@@ -148,7 +150,11 @@ async fn fetch_apartments(
     return Ok(api_response);
 }
 
-async fn card_into_complete_apartment(tokens: &OikotieTokens, card: &Card) -> Apartment {
+async fn card_into_complete_apartment(
+    tokens: &OikotieTokens,
+    card: &Card,
+    current_watchlist_id: i32,
+) -> Apartment {
     let card_data = match fetch_card(tokens, card.id.to_string()).await {
         Ok(c) => c,
         Err(_e) => OitkotieCardApiResponse {
@@ -170,6 +176,7 @@ async fn card_into_complete_apartment(tokens: &OikotieTokens, card: &Card) -> Ap
         price: card_data.price.to_string(),
         additional_costs: 0,
         rent: 0,
+        watchlist_id: current_watchlist_id,
     }
 }
 
@@ -182,12 +189,18 @@ impl OikotieClient {
 
     pub async fn get_apartments(
         mut self,
-        location: Location,
+        watchlist: Watchlist,
         get_rentals: bool,
     ) -> Option<Vec<Apartment>> {
         if self.tokens.is_none() {
             self.tokens = get_tokens().await;
         }
+
+        let location: Location = Location {
+            id: watchlist.id,
+            level: watchlist.location_level,
+            name: watchlist.location_name,
+        };
 
         let cards_response: Result<OitkotieCardsApiResponse, reqwest::Error> =
             fetch_apartments(&self.tokens.as_ref().unwrap(), location, get_rentals).await;
@@ -202,7 +215,8 @@ impl OikotieClient {
 
         while let Some(card) = cards_iter.next() {
             let apartment =
-                card_into_complete_apartment(&self.tokens.as_ref().unwrap(), card).await;
+                card_into_complete_apartment(&self.tokens.as_ref().unwrap(), card, watchlist.id)
+                    .await;
             apartments.push(apartment);
         }
 

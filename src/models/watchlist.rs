@@ -1,7 +1,7 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 use diesel::Queryable;
 
-#[derive(Debug, Queryable)]
+#[derive(Debug, Queryable, Clone)]
 pub struct Watchlist {
     pub id: i32,
     pub location_id: i32,
