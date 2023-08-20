@@ -7,3 +7,5 @@ notes.md
 .env
 
 output.log
+
+*.log
