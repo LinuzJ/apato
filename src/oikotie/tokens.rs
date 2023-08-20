@@ -25,13 +25,14 @@ pub struct OikotieTokens {
 async fn fetch_tokens() -> Result<Box<OikotieTokens>, reqwest::Error> {
     let client: reqwest::Client = reqwest::Client::new();
 
-    println!("Fetching tokens!");
+    info!("Fetching Oikotie tokens");
 
     let num: String = generate_random_number();
     let params: Vec<(&str, &str)> = vec![("format", "json"), ("rand", &num)];
+    let header_values = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36";
 
     let mut headers: HeaderMap = HeaderMap::new();
-    headers.insert("user-agent", HeaderValue::from_static("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"));
+    headers.insert("user-agent", HeaderValue::from_static(header_values));
 
     let response: Result<reqwest::Response, reqwest::Error> = client
         .get("https://asunnot.oikotie.fi/user/get")

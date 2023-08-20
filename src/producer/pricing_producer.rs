@@ -4,7 +4,7 @@ use crate::{
     oikotie::oikotie_client::{Location, OikotieClient},
 };
 use log::info;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use rocket::tokio::time;
 
@@ -12,7 +12,19 @@ pub struct PricingProducer {}
 
 impl PricingProducer {
     pub async fn run() -> ! {
-        let mut interval = time::interval(Duration::from_secs(60));
+        let mut interval = time::interval(Duration::from_secs(120));
+
+        // TEMP Initialization
+        let watchlists = watchlist::get_all();
+        if watchlists.len() == 0 {
+            let new_location: Location = Location {
+                id: 1645,
+                level: 4,
+                name: String::from("Ullanlinna"),
+            };
+
+            watchlist::create(new_location);
+        }
 
         loop {
             /*  TODO
@@ -23,14 +35,7 @@ impl PricingProducer {
              *    - /api/add_watchlist -> adds watchlist
              */
             info!("Starting PricingProducer run");
-
-            let new_location: Location = Location {
-                id: 1645,
-                level: 4,
-                name: String::from("Ullanlinna"),
-            };
-
-            watchlist::create(new_location);
+            let start = Instant::now();
 
             let watchlists = watchlist::get_all();
 
@@ -54,7 +59,9 @@ impl PricingProducer {
                 );
             }
 
-            info!("Finished PricingProducer run");
+            let duration = start.elapsed();
+            info!("Finished PricingProducer run in {:?}", duration);
+
             interval.tick().await;
         }
     }
