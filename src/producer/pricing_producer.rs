@@ -28,12 +28,14 @@ impl PricingProducer {
 
         loop {
             /*  TODO
-             *    - get watchlists -> locations
-             *    - for each location -> calculate prices
-             *    - insert into apartments table
+             *    - get watchlists -> locations - DONE
+             *    - for each location -> calculate price
+             *    - Smarter producer/consumer logic for handling watchlist calculations?
+             *    - insert into apartments table - DONE
              *    - /api/{watchlist} -> summary of apartments
              *    - /api/add_watchlist -> adds watchlist
              */
+
             info!("Starting PricingProducer run");
             let start = Instant::now();
 
