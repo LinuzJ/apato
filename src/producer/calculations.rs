@@ -18,9 +18,9 @@ pub async fn calculate_yields_for_apartments(
                    - Calculate
                 */
 
-                let rent = oikotie.get_expected_rent(&apartment).await;
+                let rent = oikotie.get_estimated_rent(&apartment).await;
 
-                println!("RENT: {:?}", rent);
+                println!("Rent for apartment: {:?} is {:?}", apartment, rent);
                 // Get expected rent for this apartment
                 db::apartment::insert(&mut establish_connection(), apartment);
             }

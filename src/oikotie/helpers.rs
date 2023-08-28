@@ -36,7 +36,7 @@ pub fn get_rent_regex(rent_string: String) -> i32 {
     let re = Regex::new(r"(\d+)").unwrap();
     let mut result = -1;
 
-    let rent_without_space = rent_string.replace(" ", "");
+    let rent_without_space = rent_string.replace("\u{a0}", "");
     // Match the pattern against the text
     if let Some(captures) = re.captures(&rent_without_space) {
         // Extract the captured value and convert it to i32
@@ -52,15 +52,22 @@ pub fn get_rent_regex(rent_string: String) -> i32 {
     return result;
 }
 
-pub fn closest_rent(apartment: &Apartment, apartments: Vec<Apartment>) -> i32 {
-    let percentage = 10.0;
+pub fn estimated_rent(apartment: &Apartment, apartments: Vec<Apartment>) -> i32 {
+    let size_buffer_percentage = 10.0;
     let similar_size_apartment_rents: Vec<i32> = apartments
         .iter()
-        .filter(|ap| is_within_percentage(ap.size as f32, apartment.size as f32, percentage))
+        .filter(|ap| {
+            is_within_percentage(
+                ap.size as f32,
+                apartment.size as f32,
+                size_buffer_percentage,
+            )
+        })
         .map(|ap| ap.rent)
         .collect();
 
-    let sum: f64 = similar_size_apartment_rents.iter().sum() as f64;
+    let sum: i32 = similar_size_apartment_rents.iter().sum();
+    let sum_float = sum as f64;
     let count = similar_size_apartment_rents.len() as f64;
 
     if count == 0.0 {
@@ -83,5 +90,5 @@ pub fn closest_rent(apartment: &Apartment, apartments: Vec<Apartment>) -> i32 {
         }
     }
 
-    return sum / count as i32;
+    return (sum_float / count) as i32;
 }

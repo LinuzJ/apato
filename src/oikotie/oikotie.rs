@@ -9,7 +9,7 @@ use rocket::Error;
 use serde::{Deserialize, Serialize};
 use tokens::{get_tokens, OikotieTokens};
 
-use super::helpers::closest_rent;
+use super::helpers::estimated_rent;
 use super::helpers::get_rent_regex;
 
 #[derive(Debug, Clone)]
@@ -293,7 +293,6 @@ impl Oikotie {
                 is_handling_rent,
             )
             .await;
-            println!("Apartment: {:?}", apartment);
             apartments.push(apartment);
         }
 
@@ -301,9 +300,9 @@ impl Oikotie {
     }
 
     /*
-       Calculates and returns the expected rent for a given location
+       Calculates and returns the estimated rent for a given location
     */
-    pub async fn get_expected_rent(&mut self, apartment: &Apartment) -> Result<i32, Error> {
+    pub async fn get_estimated_rent(&mut self, apartment: &Apartment) -> Result<i32, Error> {
         let location = &Location {
             id: apartment.location_id,
             level: apartment.location_level,
@@ -313,7 +312,7 @@ impl Oikotie {
 
         match apartment_rents {
             Some(apartments_with_rent) => {
-                let rent = closest_rent(apartment, apartments_with_rent);
+                let rent = estimated_rent(apartment, apartments_with_rent);
                 return Ok(rent);
             }
             None => panic!("Error while calculating rent"),
