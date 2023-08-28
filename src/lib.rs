@@ -13,23 +13,15 @@ mod routes;
 
 use crate::logger::setup_logger;
 use producer::pricing_producer::PricingProducer;
-use rocket::{fairing::AdHoc, Build, Rocket};
+use rocket::{tokio, Build, Rocket};
 
 #[launch]
 pub async fn rocket() -> Rocket<Build> {
     // Initialize logger
     let _ = setup_logger();
 
+    tokio::spawn(async { PricingProducer::run().await });
+
     // Initialize Rocket app
-    rocket::build()
-        .attach(AdHoc::on_liftoff(
-            "Pricing producer",
-            |rocket: &Rocket<rocket::Orbit>| {
-                Box::pin(async move {
-                    PricingProducer::run().await;
-                })
-            },
-        ))
-        .mount("/api", routes![routes::index::index])
-    // .attach(db::Db::fairing())
+    rocket::build().mount("/api", routes![routes::index::index])
 }

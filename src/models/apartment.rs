@@ -9,7 +9,7 @@ pub struct Apartment {
     pub location_level: i32,
     pub location_name: String,
     pub size: f64,
-    // pub rooms: i32,
+    pub rooms: i32,
     pub price: String,
     pub additional_costs: i32,
     pub rent: i32,

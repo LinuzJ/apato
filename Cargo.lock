@@ -53,6 +53,7 @@ dependencies = [
  "humantime",
  "log",
  "rand",
+ "regex",
  "reqwest",
  "rocket",
  "rocket_sync_db_pools",

@@ -1,7 +1,7 @@
 use crate::{
-    db::{self, establish_connection, watchlist},
-    models::apartment::Apartment,
-    oikotie::oikotie_client::{Location, OikotieClient},
+    db::watchlist,
+    oikotie::oikotie::{Location, Oikotie},
+    producer::calculations::calculate_yields_for_apartments,
 };
 use log::info;
 use std::time::{Duration, Instant};
@@ -17,13 +17,11 @@ impl PricingProducer {
         // TEMP Initialization
         let watchlists = watchlist::get_all();
         if watchlists.len() == 0 {
-            let new_location: Location = Location {
+            watchlist::create(Location {
                 id: 1645,
                 level: 4,
                 name: String::from("Ullanlinna"),
-            };
-
-            watchlist::create(new_location);
+            });
         }
 
         loop {
@@ -47,13 +45,11 @@ impl PricingProducer {
                     watchlist.id
                 );
 
-                let oikotie_client: OikotieClient = OikotieClient::new().await;
+                let mut oikotie_client: Oikotie = Oikotie::new().await;
 
-                let apartments = oikotie_client
-                    .get_apartments(watchlist.clone(), false)
-                    .await;
+                let apartments = oikotie_client.get_apartments(&watchlist).await;
 
-                handle_apartments(apartments);
+                calculate_yields_for_apartments(apartments, oikotie_client).await;
 
                 info!(
                     "Finished price calculations for watchlist_id: {:?}",
@@ -66,16 +62,5 @@ impl PricingProducer {
 
             interval.tick().await;
         }
-    }
-}
-
-fn handle_apartments(potential_apartments: Option<Vec<Apartment>>) {
-    match potential_apartments {
-        Some(apartments) => {
-            for ele in apartments {
-                db::apartment::insert(&mut establish_connection(), ele);
-            }
-        }
-        None => println!("No apartments added.."),
     }
 }

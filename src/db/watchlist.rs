@@ -1,5 +1,4 @@
-use crate::{models::watchlist::Watchlist, oikotie::oikotie_client::Location};
-use chrono::Utc;
+use crate::{models::watchlist::Watchlist, oikotie::oikotie::Location};
 use diesel::{
     query_dsl::select_dsl::SelectDsl, result::Error, Insertable, PgConnection, RunQueryDsl, Table,
 };
