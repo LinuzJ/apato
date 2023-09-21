@@ -258,9 +258,9 @@ impl Oikotie {
     }
 
     /*
-       Fecthes all apartments for a certain location
+       Fecthes all rental apartments for a certain location
     */
-    pub async fn get_apartment_rents(&mut self, location: &Location) -> Option<Vec<Apartment>> {
+    pub async fn get_rental_apartments(&mut self, location: &Location) -> Option<Vec<Apartment>> {
         if self.tokens.is_none() {
             self.tokens = get_tokens().await;
         }
@@ -308,9 +308,9 @@ impl Oikotie {
             level: apartment.location_level,
             name: apartment.location_name.clone(),
         };
-        let apartment_rents = self.get_apartment_rents(location).await;
+        let rental_apartments = self.get_rental_apartments(location).await;
 
-        match apartment_rents {
+        match rental_apartments {
             Some(apartments_with_rent) => {
                 let rent = estimated_rent(apartment, apartments_with_rent);
                 return Ok(rent);

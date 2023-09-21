@@ -70,24 +70,25 @@ pub fn estimated_rent(apartment: &Apartment, apartments: Vec<Apartment>) -> i32 
     let sum_float = sum as f64;
     let count = similar_size_apartment_rents.len() as f64;
 
+    // If there are no similar size apartments, scale rent by relation to median
     if count == 0.0 {
+        let mut estimated_rent: f64 = 0.0;
         let mut rent_only: Vec<i32> = apartments.iter().map(|ap| ap.rent).collect();
         let mut size_only: Vec<i32> = apartments.iter().map(|ap| ap.size as i32).collect();
 
-        let rent_median = calculate_median(&mut rent_only);
-        let size_median = calculate_median(&mut size_only);
+        let rent_median: f64 = calculate_median(&mut rent_only);
+        let size_median: f64 = calculate_median(&mut size_only);
 
         if apartment.rent as f64 > rent_median {
             let percentage_bigger_than_median =
                 ((apartment.size - size_median) / size_median) + 1.0;
-            let estimated_rent = apartment.rent as f64 * percentage_bigger_than_median;
-            return estimated_rent as i32;
+            estimated_rent = (rent_median as f64) * percentage_bigger_than_median;
         } else {
             let percentage_smaller_than_median =
                 1.0 - ((size_median - apartment.size) / size_median);
-            let estimated_rent = apartment.rent as f64 * percentage_smaller_than_median;
-            return estimated_rent as i32;
+            estimated_rent = (rent_median as f64) * percentage_smaller_than_median;
         }
+        return estimated_rent as i32;
     }
 
     return (sum_float / count) as i32;
