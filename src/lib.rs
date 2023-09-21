@@ -5,6 +5,7 @@ extern crate diesel;
 extern crate rocket_sync_db_pools;
 
 mod db;
+mod interest_rate;
 mod logger;
 mod models;
 mod oikotie;
