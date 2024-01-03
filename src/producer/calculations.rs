@@ -2,6 +2,7 @@ use log::error;
 
 use crate::{
     db::{self, establish_connection},
+    interest_rate::interest_rate_client,
     models::apartment::Apartment,
     oikotie::oikotie::Oikotie,
 };
@@ -30,6 +31,11 @@ pub async fn calculate_yields_for_apartments(
                 db::apartment::insert(&mut establish_connection(), apartment);
 
                 // Get interest rate from Nordea
+                let estimated_interest_rate = interest_rate_client::get_interest_rate().await;
+                match estimated_interest_rate {
+                    Ok(ir) => println!("{}", ir),
+                    Err(e) => error!("{}", e),
+                }
             }
         }
         None => println!("No apartments added.."),
