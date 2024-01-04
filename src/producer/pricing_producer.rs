@@ -15,7 +15,7 @@ impl PricingProducer {
         let interval_in_seconds = 5 * 60;
         let mut interval = time::interval(Duration::from_secs(interval_in_seconds));
 
-        // TEMP Initialization
+        // // TEMP Initialization
         let watchlists = watchlist::get_all();
         if watchlists.len() == 0 {
             watchlist::create(Location {

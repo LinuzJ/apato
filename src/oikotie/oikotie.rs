@@ -312,7 +312,7 @@ impl Oikotie {
 
         match rental_apartments {
             Some(apartments_with_rent) => {
-                let rent = estimated_rent(apartment, apartments_with_rent);
+                let rent: i32 = estimated_rent(apartment, apartments_with_rent);
                 return Ok(rent);
             }
             None => panic!("Error while calculating rent"),
