@@ -52,6 +52,11 @@ pub async fn process_apartment_calculations(
 }
 
 fn calculate_apartment_yield(price: String, rent: i32, interest_rate: f64) -> f64 {
+    /**
+     * TODO
+     *
+     * - Convert price from string to something useful
+     * */
     // Calculate annual mortgage payment using the loan term and interest rate
     let annual_interest_rate = interest_rate / 100.0;
     let loan_term_months = 25 * 12;
