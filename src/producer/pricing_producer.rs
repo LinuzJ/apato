@@ -1,7 +1,7 @@
 use crate::{
     db::watchlist,
     oikotie::oikotie::{Location, Oikotie},
-    producer::calculations::calculate_yields_for_apartments,
+    producer::calculations::process_apartment_calculations,
 };
 use log::info;
 use std::time::{Duration, Instant};
@@ -50,7 +50,7 @@ impl PricingProducer {
 
                 let apartments = oikotie_client.get_apartments(&watchlist).await;
 
-                calculate_yields_for_apartments(apartments, oikotie_client).await;
+                process_apartment_calculations(apartments, oikotie_client).await;
 
                 info!(
                     "Finished price calculations for watchlist_id: {:?}",

@@ -1,7 +1,7 @@
 use crate::db::schema::apartments;
 use diesel::{Insertable, Queryable};
 
-#[derive(Debug, Queryable, Insertable)]
+#[derive(Debug, Queryable, Insertable, Clone)]
 #[table_name = "apartments"]
 pub struct Apartment {
     pub card_id: String,
