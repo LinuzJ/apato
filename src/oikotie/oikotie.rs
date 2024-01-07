@@ -4,6 +4,7 @@ use crate::oikotie::helpers;
 use crate::oikotie::tokens;
 
 use helpers::create_location_string;
+use log::error;
 use reqwest::header::{HeaderMap, HeaderValue};
 use rocket::Error;
 use serde::{Deserialize, Serialize};
@@ -80,7 +81,7 @@ async fn fetch_card(
 ) -> Result<OitkotieCardApiResponse, reqwest::Error> {
     let client: reqwest::Client = reqwest::Client::new();
 
-    let mut oikotie_cards_api_url = String::from("https://asunnot.oikotie.fi/api/card/");
+    let mut oikotie_cards_api_url = String::from("https://asunnot.oikotie.fi/api/5.0/card/");
     oikotie_cards_api_url.push_str(&card_id.to_owned());
 
     let mut headers: HeaderMap = HeaderMap::new();
@@ -178,17 +179,25 @@ async fn card_into_complete_apartment(
         };
     }
 
-    let card_data = match fetch_card(tokens, card.id.to_string()).await {
+    // TODO FIX THIS TO HANDLE 5.0 API
+    let card_data: OitkotieCardApiResponse = match fetch_card(tokens, card.id.to_string()).await {
         Ok(c) => c,
-        Err(_e) => OitkotieCardApiResponse {
-            id: String::from(""),
-            price: 0,
-            size: 0.0,
-            room_configuration: String::from(""),
-            price_data: Price::empty(),
-            status: 0,
-        },
+        Err(_e) => {
+            error!(
+                "Did not fetch card data for card {:?}. Error is {:?}",
+                card.id, _e
+            );
+            OitkotieCardApiResponse {
+                id: String::from(""),
+                price: 0,
+                size: 0.0,
+                room_configuration: String::from(""),
+                price_data: Price::empty(),
+                status: 0,
+            }
+        }
     };
+
     let watchlist_id = match optional_watchlist_id {
         Some(id) => id,
         None => -1,

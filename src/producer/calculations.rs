@@ -58,23 +58,26 @@ fn calculate_apartment_yield(price: String, rent: i32, interest_rate: f64) -> f6
      * - Convert price from string to something useful
      * */
     // Calculate annual mortgage payment using the loan term and interest rate
+    println!("PRICE: {:?}", price);
+
     let annual_interest_rate = interest_rate / 100.0;
     let loan_term_months = 25 * 12;
     let monthly_interest_rate = annual_interest_rate / 12.0;
     let discount_factor = ((1.0 + monthly_interest_rate).powi(loan_term_months as i32) - 1.0)
         / (monthly_interest_rate * (1.0 + monthly_interest_rate).powi(loan_term_months as i32));
 
-    let mortgage_payment = price
-        * (monthly_interest_rate
-            / (1.0 - 1.0 / (1.0 + monthly_interest_rate).powi(loan_term_months as i32)))
-        / discount_factor;
+    // let mortgage_payment = price
+    //     * (monthly_interest_rate
+    //         / (1.0 - 1.0 / (1.0 + monthly_interest_rate).powi(loan_term_months as i32)))
+    //     / discount_factor;
 
-    // Calculate net cash flow (rent - mortgage payment)
-    let net_cash_flow = rent - mortgage_payment;
+    // // Calculate net cash flow (rent - mortgage payment)
+    // let net_cash_flow = rent - mortgage_payment;
 
-    // Calculate rental yield (net cash flow / initial investment)
-    let initial_investment = price * 0.2; // For simpolicity for now, assume 20% downpayments
-    let rental_yield = net_cash_flow / initial_investment;
+    // // Calculate rental yield (net cash flow / initial investment)
+    // let initial_investment = price * 0.2; // For simpolicity for now, assume 20% downpayments
+    // let rental_yield = net_cash_flow / initial_investment;
 
-    rental_yield * 100.0 // Convert to percentage
+    // rental_yield * 100.0 // Convert to percentage
+    return 1.0;
 }
