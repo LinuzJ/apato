@@ -10,3 +10,23 @@ Technologies used:
 - Rocket
 - Diesel
 - Postgresql
+
+## Usage
+
+Run db:
+
+```
+docker-compose up -d
+```
+
+Run server:
+
+```
+cargo watch -x run
+```
+
+Run migrations:
+
+```
+diesel migration run
+```
