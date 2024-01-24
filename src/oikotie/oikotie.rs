@@ -34,21 +34,31 @@ struct Card {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Price {
-    myyntihinta: String,
-    rahoitusvastike: String,
-    hoitovastike: String,
-    yhtiövastike: String,
-    velkaosuus: String,
+    price: String,
 }
 
 impl Price {
     fn empty() -> Price {
         Price {
-            myyntihinta: String::from(""),
-            rahoitusvastike: String::from(""),
-            hoitovastike: String::from(""),
-            yhtiövastike: String::from(""),
-            velkaosuus: String::from(""),
+            price: String::from(""),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AdData {
+    maintenanceFee: String,
+    size: i32,
+    roomConfiguration: String,
+}
+
+impl AdData {
+    fn empty() -> AdData {
+        AdData {
+            maintenanceFee: String::from(""),
+            size: 0,
+            roomConfiguration: String::from(""),
         }
     }
 }
@@ -62,12 +72,21 @@ struct OitkotieCardsApiResponse {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct OitkotieCardApiResponse {
-    id: String,
-    price: u16,
-    size: f32,
-    room_configuration: String,
-    price_data: Price,
-    status: u16,
+    cardId: String,
+    adData: AdData,
+    priceData: Price,
+    status: i32,
+}
+
+impl OitkotieCardApiResponse {
+    fn empty() -> OitkotieCardApiResponse {
+        OitkotieCardApiResponse {
+            cardId: String::from(""),
+            adData: AdData::empty(),
+            priceData: Price::empty(),
+            status: 0,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -81,6 +100,7 @@ async fn fetch_card(
 ) -> Result<OitkotieCardApiResponse, reqwest::Error> {
     let client: reqwest::Client = reqwest::Client::new();
 
+    // Create request with needed token headers
     let mut oikotie_cards_api_url = String::from("https://asunnot.oikotie.fi/api/5.0/card/");
     oikotie_cards_api_url.push_str(&card_id.to_owned());
 
@@ -98,6 +118,7 @@ async fn fetch_card(
         Err(_e) => todo!(),
     };
 
+    // Perform the actual request
     let response = client
         .get(oikotie_cards_api_url)
         .headers(headers)
@@ -163,6 +184,7 @@ async fn card_into_complete_apartment(
     is_handling_rent: bool,
 ) -> Apartment {
     if is_handling_rent {
+        // Because rent is in weird string format -> regex match to i32
         let rent = get_rent_regex(card.price.clone());
 
         return Apartment {
@@ -180,6 +202,7 @@ async fn card_into_complete_apartment(
     }
 
     // TODO FIX THIS TO HANDLE 5.0 API
+    // Fetch card data that includes total price information
     let card_data: OitkotieCardApiResponse = match fetch_card(tokens, card.id.to_string()).await {
         Ok(c) => c,
         Err(_e) => {
@@ -187,14 +210,7 @@ async fn card_into_complete_apartment(
                 "Did not fetch card data for card {:?}. Error is {:?}",
                 card.id, _e
             );
-            OitkotieCardApiResponse {
-                id: String::from(""),
-                price: 0,
-                size: 0.0,
-                room_configuration: String::from(""),
-                price_data: Price::empty(),
-                status: 0,
-            }
+            OitkotieCardApiResponse::empty()
         }
     };
 
@@ -210,7 +226,7 @@ async fn card_into_complete_apartment(
         location_name: location.name.clone(),
         size: card.size as f64,
         rooms: card.rooms as i32,
-        price: card_data.price.to_string(),
+        price: card_data.priceData.price.to_string(),
         additional_costs: 0,
         rent: 0,
         watchlist_id: watchlist_id,
@@ -252,7 +268,7 @@ impl Oikotie {
         let mut apartments: Vec<Apartment> = Vec::new();
 
         while let Some(card) = cards_iter.next() {
-            let apartment = card_into_complete_apartment(
+            let apartment: Apartment = card_into_complete_apartment(
                 &self.tokens.as_ref().unwrap(),
                 card,
                 location,
