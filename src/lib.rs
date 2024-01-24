@@ -9,10 +9,11 @@ mod interest_rate;
 mod logger;
 mod models;
 mod oikotie;
-mod producer;
+pub mod producer;
 mod routes;
 
 use crate::logger::setup_logger;
+pub use producer::calculate_rental_yield;
 use producer::pricing_producer::PricingProducer;
 use rocket::{tokio, Build, Rocket};
 

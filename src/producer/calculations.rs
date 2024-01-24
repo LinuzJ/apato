@@ -33,7 +33,7 @@ pub async fn process_apartment_calculations(
                 // Get interest rate from Nordea
                 let interest_rate_option = interest_rate_client::get_interest_rate().await;
                 let apartment_yield = match interest_rate_option {
-                    Ok(interest_rate) => calculate_apartment_yield(
+                    Ok(interest_rate) => calculate_rental_yield(
                         apartment.price.clone(),
                         apartment.rent,
                         apartment.additional_costs,
@@ -52,7 +52,7 @@ pub async fn process_apartment_calculations(
     }
 }
 
-fn calculate_apartment_yield(
+pub fn calculate_rental_yield(
     price: i32,
     rent: i32,
     additional_cost: i32,
