@@ -8,6 +8,7 @@ use log::error;
 use reqwest::header::{HeaderMap, HeaderValue};
 use rocket::Error;
 use serde::{Deserialize, Serialize};
+use serde_this_or_that::as_u64;
 use tokens::{get_tokens, OikotieTokens};
 
 use super::helpers::estimated_rent;
@@ -34,31 +35,32 @@ struct Card {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Price {
-    price: String,
+    #[serde(deserialize_with = "as_u64")]
+    price: u64,
 }
 
 impl Price {
     fn empty() -> Price {
-        Price {
-            price: String::from(""),
-        }
+        Price { price: 0 }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct AdData {
-    maintenanceFee: String,
-    size: i32,
-    roomConfiguration: String,
+    #[serde(deserialize_with = "as_u64")]
+    maintenance_fee: u64,
+    #[serde(deserialize_with = "as_u64")]
+    size: u64,
+    room_configuration: String,
 }
 
 impl AdData {
     fn empty() -> AdData {
         AdData {
-            maintenanceFee: String::from(""),
+            maintenance_fee: 0,
             size: 0,
-            roomConfiguration: String::from(""),
+            room_configuration: String::from(""),
         }
     }
 }
@@ -72,18 +74,18 @@ struct OitkotieCardsApiResponse {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct OitkotieCardApiResponse {
-    cardId: String,
-    adData: AdData,
-    priceData: Price,
+    card_id: i32,
+    ad_data: AdData,
+    price_data: Price,
     status: i32,
 }
 
 impl OitkotieCardApiResponse {
     fn empty() -> OitkotieCardApiResponse {
         OitkotieCardApiResponse {
-            cardId: String::from(""),
-            adData: AdData::empty(),
-            priceData: Price::empty(),
+            card_id: 0,
+            ad_data: AdData::empty(),
+            price_data: Price::empty(),
             status: 0,
         }
     }
@@ -226,7 +228,7 @@ async fn card_into_complete_apartment(
         location_name: location.name.clone(),
         size: card.size as f64,
         rooms: card.rooms as i32,
-        price: card_data.priceData.price.to_string(),
+        price: card_data.price_data.price.to_string(),
         additional_costs: 0,
         rent: 0,
         watchlist_id: watchlist_id,
