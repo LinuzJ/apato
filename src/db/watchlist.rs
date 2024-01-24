@@ -5,7 +5,7 @@ use diesel::{
 
 use super::{establish_connection, schema::watchlists};
 #[derive(Insertable)]
-#[table_name = "watchlists"]
+#[diesel(table_name = watchlists)]
 pub struct InsertableWatchlist {
     location_id: i32,
     location_level: i32,

@@ -36,6 +36,7 @@ pub async fn process_apartment_calculations(
                     Ok(interest_rate) => calculate_apartment_yield(
                         apartment.price.clone(),
                         apartment.rent,
+                        apartment.additional_costs,
                         interest_rate,
                     ),
                     Err(e) => {
@@ -51,10 +52,13 @@ pub async fn process_apartment_calculations(
     }
 }
 
-fn calculate_apartment_yield(price: i32, rent: i32, interest_rate: f64) -> f64 {
+fn calculate_apartment_yield(
+    price: i32,
+    rent: i32,
+    additional_cost: i32,
+    interest_rate: f64,
+) -> f64 {
     // Calculate annual mortgage payment using the loan term and interest rate
-    println!("PRICE: {:?}", price);
-    println!("interest_rate: {:?}", interest_rate);
 
     let annual_interest_rate = interest_rate / 100.0;
     let loan_term_months = 25 * 12;
@@ -67,12 +71,17 @@ fn calculate_apartment_yield(price: i32, rent: i32, interest_rate: f64) -> f64 {
             / (1.0 - 1.0 / (1.0 + monthly_interest_rate).powi(loan_term_months as i32)))
         / discount_factor;
 
+    println!("MORTAGE {:?}", mortgage_payment);
+
     // Calculate net cash flow (rent - mortgage payment)
-    let net_cash_flow = rent as f64 - mortgage_payment;
+    let net_cash_flow = rent as f64 - additional_cost as f64 - mortgage_payment;
 
     // Calculate rental yield (net cash flow / initial investment)
     let initial_investment = price as f64 * 0.2; // For simpolicity for now, assume 20% downpayments
     let rental_yield = net_cash_flow / initial_investment;
 
-    rental_yield * 100.0 // Convert to percentage
+    // Convert to yearly yield (multiply by 12)
+    let yearly_yield = rental_yield * 12.0;
+
+    yearly_yield * 100.0 // Convert to percentage
 }

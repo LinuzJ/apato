@@ -13,7 +13,6 @@ mod producer;
 mod routes;
 
 use crate::logger::setup_logger;
-use interest_rate::interest_rate_client::get_interest_rate;
 use producer::pricing_producer::PricingProducer;
 use rocket::{tokio, Build, Rocket};
 

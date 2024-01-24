@@ -2,6 +2,7 @@ use chrono::NaiveDateTime;
 use diesel::Queryable;
 
 #[derive(Debug, Queryable, Clone)]
+#[diesel(table_name = watchlists)]
 pub struct Watchlist {
     pub id: i32,
     pub location_id: i32,

@@ -1,12 +1,7 @@
-use std::{
-    collections::HashMap,
-    fs::{self, File},
-    io::Read,
-};
+use std::fs::File;
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
 
 #[derive(Debug, Deserialize)]
 struct ApiResponse {
@@ -40,7 +35,7 @@ struct FinlandInput {
 pub async fn get_interest_rate() -> Result<f64, reqwest::Error> {
     // Read config file
     let config_file_path = "src/interest_rate/loan_interest_confis.json";
-    let file = fs::File::open(config_file_path).expect("file should open read only");
+    let file = File::open(config_file_path).expect("file should open read only");
     let json: serde_json::Value =
         serde_json::from_reader(file).expect("file should be proper JSON");
     let loan_duration_years = json

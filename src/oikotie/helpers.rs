@@ -72,6 +72,7 @@ pub fn estimated_rent(apartment: &Apartment, apartments: Vec<Apartment>) -> i32 
 
     // If there are no similar size apartments, scale rent by relation to median
     if count == 0.0 {
+        #[allow(unused_assignments)]
         let mut estimated_rent: f64 = 0.0;
         let mut rent_only: Vec<i32> = apartments.iter().map(|ap| ap.rent).collect();
         let mut size_only: Vec<i32> = apartments.iter().map(|ap| ap.size as i32).collect();
@@ -88,7 +89,9 @@ pub fn estimated_rent(apartment: &Apartment, apartments: Vec<Apartment>) -> i32 
                 1.0 - ((size_median - apartment.size) / size_median);
             estimated_rent = (rent_median as f64) * percentage_smaller_than_median;
         }
-        return estimated_rent as i32;
+
+        let final_rent: i32 = estimated_rent as i32;
+        return final_rent;
     }
 
     return (sum_float / count) as i32;
