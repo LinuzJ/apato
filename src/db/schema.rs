@@ -9,7 +9,7 @@ diesel::table! {
         location_name -> Nullable<Text>,
         size -> Nullable<Float8>,
         rooms -> Nullable<Int4>,
-        price -> Nullable<Text>,
+        price -> Nullable<Int4>,
         additional_costs -> Nullable<Int4>,
         rent -> Nullable<Int4>,
         watchlist_id -> Int4,

@@ -6,7 +6,7 @@ CREATE TABLE apartments (
     location_name TEXT,
     size FLOAT,
     rooms INT,
-    price TEXT,
+    price INT,
     additional_costs INT,
     rent INT,
     watchlist_id INTEGER NOT NULL REFERENCES watchlists ON DELETE CASCADE,
