@@ -1,8 +1,6 @@
-mod routes;
-use rocket;
+use apato;
 
-#[rocket::main]
-async fn main() -> Result<(), rocket::Error> {
-    let _rocket = apato::rocket().await.launch().await?;
-    Ok(())
+#[tokio::main]
+async fn main() {
+    apato::launch_apato().await
 }

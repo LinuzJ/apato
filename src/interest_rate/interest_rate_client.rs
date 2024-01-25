@@ -35,7 +35,7 @@ struct FinlandInput {
 pub async fn get_interest_rate() -> Result<f64, reqwest::Error> {
     // Read config file
     let config_file_path = "src/interest_rate/loan_interest_confis.json";
-    let file = File::open(config_file_path).expect("file should open read only");
+    let file = File::open(config_file_path).expect("Dile should open read only");
     let json: serde_json::Value =
         serde_json::from_reader(file).expect("file should be proper JSON");
     let loan_duration_years = json

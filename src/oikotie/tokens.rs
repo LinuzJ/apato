@@ -1,3 +1,4 @@
+use log::{error, info};
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::Deserialize;
 
@@ -62,6 +63,9 @@ pub async fn get_tokens() -> Option<Box<OikotieTokens>> {
 
     return match tokens {
         Ok(tokens) => Some(tokens),
-        Err(_e) => None,
+        Err(_e) => {
+            error!("Error while fetching oikotie tokens.. Error: {:?}", _e);
+            return None;
+        }
     };
 }

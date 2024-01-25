@@ -1,5 +1,3 @@
-use apato;
-
 #[cfg(test)]
 mod calculations_test {
     #[test]

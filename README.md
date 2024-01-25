@@ -19,10 +19,10 @@ Run db:
 docker-compose up -d
 ```
 
-Run server:
+Run service:
 
 ```
-cargo watch -x run
+cargo run main.rs
 ```
 
 Run migrations:

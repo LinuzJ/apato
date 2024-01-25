@@ -1,3 +1,5 @@
+use std::fmt::Error;
+
 use crate::models::apartment::Apartment;
 use crate::models::watchlist::Watchlist;
 use crate::oikotie::helpers;
@@ -6,7 +8,6 @@ use crate::oikotie::tokens;
 use helpers::create_location_string;
 use log::error;
 use reqwest::header::{HeaderMap, HeaderValue};
-use rocket::Error;
 use serde::{Deserialize, Serialize};
 use serde_this_or_that::as_u64;
 use tokens::{get_tokens, OikotieTokens};

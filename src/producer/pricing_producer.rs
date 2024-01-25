@@ -5,13 +5,12 @@ use crate::{
 };
 use log::info;
 use std::time::{Duration, Instant};
-
-use rocket::tokio::time;
+use tokio::time;
 
 pub struct PricingProducer {}
 
 impl PricingProducer {
-    pub async fn run() -> ! {
+    pub async fn run() {
         let interval_in_seconds = 5 * 60;
         let mut interval = time::interval(Duration::from_secs(interval_in_seconds));
 
