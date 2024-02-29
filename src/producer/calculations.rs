@@ -21,18 +21,16 @@ pub async fn process_apartment_calculations(
                    - Calculate
                 */
 
-                // Get expected rent for this apartment
-                let expected_rent = oikotie.get_estimated_rent(&apartment).await;
+                let estimated_rent = oikotie.get_estimated_rent(&apartment).await;
 
-                match expected_rent {
+                match estimated_rent {
                     Ok(rent) => apartment.rent = rent,
                     Err(e) => error!("{}", e),
                 }
-                db::apartment::insert(&mut establish_connection(), apartment.clone());
 
-                // Get interest rate from Nordea
-                let interest_rate_option = interest_rate_client::get_interest_rate().await;
-                let apartment_yield = match interest_rate_option {
+                let interest_rate = interest_rate_client::get_interest_rate().await;
+
+                let apartment_yield = match interest_rate {
                     Ok(interest_rate) => calculate_rental_yield(
                         apartment.price.clone(),
                         apartment.rent,
@@ -40,12 +38,12 @@ pub async fn process_apartment_calculations(
                         interest_rate,
                     ),
                     Err(e) => {
-                        error!("{}", e);
+                        error!("Error while calculating rental yield: {}", e);
                         0.0
                     }
                 };
-
-                println!("YIELD: {:?}", apartment_yield)
+                apartment.estimated_yield = apartment_yield;
+                db::apartment::insert(&mut establish_connection(), apartment.clone());
             }
         }
         None => println!("No apartments added.."),
@@ -70,8 +68,6 @@ pub fn calculate_rental_yield(
         * (monthly_interest_rate
             / (1.0 - 1.0 / (1.0 + monthly_interest_rate).powi(loan_term_months as i32)))
         / discount_factor;
-
-    println!("MORTAGE {:?}", mortgage_payment);
 
     // Calculate net cash flow (rent - mortgage payment)
     let net_cash_flow = rent as f64 - additional_cost as f64 - mortgage_payment;

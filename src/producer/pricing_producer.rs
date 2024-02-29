@@ -1,5 +1,6 @@
 use crate::{
     db::watchlist,
+    models::apartment::Apartment,
     oikotie::oikotie::{Location, Oikotie},
     producer::calculations::process_apartment_calculations,
 };
@@ -47,7 +48,8 @@ impl PricingProducer {
 
                 let mut oikotie_client: Oikotie = Oikotie::new().await;
 
-                let apartments = oikotie_client.get_apartments(&watchlist).await;
+                let apartments: Option<Vec<Apartment>> =
+                    oikotie_client.get_apartments(&watchlist).await;
 
                 process_apartment_calculations(apartments, oikotie_client).await;
 

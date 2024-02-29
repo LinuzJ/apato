@@ -12,6 +12,7 @@ diesel::table! {
         price -> Nullable<Int4>,
         additional_costs -> Nullable<Int4>,
         rent -> Nullable<Int4>,
+        estimated_yield -> Nullable<Float8>,
         watchlist_id -> Int4,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,

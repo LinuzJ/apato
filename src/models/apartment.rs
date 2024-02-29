@@ -13,5 +13,6 @@ pub struct Apartment {
     pub price: i32,
     pub additional_costs: i32,
     pub rent: i32,
+    pub estimated_yield: f64,
     pub watchlist_id: i32,
 }

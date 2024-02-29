@@ -200,6 +200,7 @@ async fn card_into_complete_apartment(
             price: 0,
             additional_costs: 0,
             rent: rent,
+            estimated_yield: 0.0,
             watchlist_id: -1,
         };
     }
@@ -232,6 +233,7 @@ async fn card_into_complete_apartment(
         price: card_data.price_data.price as i32,
         additional_costs: card_data.ad_data.maintenance_fee as i32,
         rent: 0,
+        estimated_yield: 0.0,
         watchlist_id: watchlist_id,
     }
 }

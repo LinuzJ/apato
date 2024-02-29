@@ -67,8 +67,8 @@ pub fn estimated_rent(apartment: &Apartment, apartments: Vec<Apartment>) -> i32 
         .collect();
 
     let sum: i32 = similar_size_apartment_rents.iter().sum();
-    let sum_float = sum as f64;
-    let count = similar_size_apartment_rents.len() as f64;
+    let sum_float: f64 = sum as f64;
+    let count: f64 = similar_size_apartment_rents.len() as f64;
 
     // If there are no similar size apartments, scale rent by relation to median
     if count == 0.0 {
