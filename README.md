@@ -7,7 +7,6 @@ Calculates the yields of apartments in regions included in the watchlists specif
 Technologies used:
 
 - Rust
-- Rocket
 - Diesel
 - Postgresql
 
