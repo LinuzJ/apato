@@ -1,6 +1,7 @@
 use crate::bot::bot_types;
 use anyhow::Result;
 use dotenvy::dotenv;
+use lazy_static::lazy_static;
 use log::error;
 use regex::Regex;
 use std::{env, sync::Arc};
@@ -15,6 +16,8 @@ use teloxide::{
 };
 
 use super::bot_types::SubscriptionArgs;
+
+// Inspiration: https://github.com/raine/tgreddit
 
 #[derive(BotCommands, Clone)]
 #[command(
@@ -47,7 +50,7 @@ pub struct ApatoBot {
 }
 
 impl ApatoBot {
-    pub async fn new() -> Result<ApatoBot> {
+    pub async fn new() -> Result<Self> {
         dotenv().ok();
 
         let telegram_bot_token = env::var("TELEGRAM_TOKEN").expect("TELEGRAM_TOKEN must be set");
@@ -118,6 +121,13 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
 }
 
 fn parse_subscribe_message(input: String) -> Result<(SubscriptionArgs,), ParseError> {
+    // lazy_static! {
+    //     static ref SUBREDDIT_RE: Regex = Regex::new(r"^[^\s]+").unwrap();
+    //     static ref LIMIT_RE: Regex = Regex::new(r"\blimit=(\d+)\b").unwrap();
+    //     static ref TIME_RE: Regex = Regex::new(r"\btime=(\w+)\b").unwrap();
+    //     static ref FILTER_RE: Regex = Regex::new(r"\bfilter=(\w+)\b").unwrap();
+    // }
+
     let args = SubscriptionArgs {
         location: 1.to_string(),
         size: Some(1),
@@ -126,3 +136,63 @@ fn parse_subscribe_message(input: String) -> Result<(SubscriptionArgs,), ParseEr
 
     Ok((args,))
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+
+//     #[test]
+//     fn test_parse_subscribe_message_only_subreddit() {
+//         let args = parse_subscribe_message("AnimalsBeingJerks".to_string()).unwrap();
+//         assert_eq!(
+//             args.0,
+//             SubscriptionArgs {
+//                 subreddit: "AnimalsBeingJerks".to_string(),
+//                 limit: None,
+//                 time: None,
+//                 filter: None,
+//             },
+//         )
+//     }
+
+//     #[test]
+//     fn test_parse_subscribe_message_strips_prefix() {
+//         let args = parse_subscribe_message("r/AnimalsBeingJerks".to_string()).unwrap();
+//         assert_eq!(
+//             args.0,
+//             SubscriptionArgs {
+//                 subreddit: "AnimalsBeingJerks".to_string(),
+//                 limit: None,
+//                 time: None,
+//                 filter: None,
+//             },
+//         );
+
+//         let args = parse_subscribe_message("/r/AnimalsBeingJerks".to_string()).unwrap();
+//         assert_eq!(
+//             args.0,
+//             SubscriptionArgs {
+//                 subreddit: "AnimalsBeingJerks".to_string(),
+//                 limit: None,
+//                 time: None,
+//                 filter: None,
+//             },
+//         )
+//     }
+
+//     #[test]
+//     fn test_parse_subscribe_message() {
+//         let args =
+//             parse_subscribe_message("AnimalsBeingJerks limit=5 time=week filter=video".to_string())
+//                 .unwrap();
+//         assert_eq!(
+//             args.0,
+//             SubscriptionArgs {
+//                 subreddit: "AnimalsBeingJerks".to_string(),
+//                 limit: Some(5),
+//                 time: Some(TopPostsTimePeriod::Week),
+//                 filter: Some(PostType::Video),
+//             },
+//         )
+//     }
+// }
