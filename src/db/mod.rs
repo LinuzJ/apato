@@ -8,7 +8,6 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[database("diesel_postgres_pool")]
 pub struct Db(diesel::PgConnection);
 
 impl Deref for Db {
@@ -26,7 +25,6 @@ impl DerefMut for Db {
 }
 
 use diesel::{Connection, PgConnection};
-use rocket_sync_db_pools::database;
 
 pub fn establish_connection() -> PgConnection {
     dotenv().ok();

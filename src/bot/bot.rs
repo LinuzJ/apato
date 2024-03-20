@@ -1,4 +1,8 @@
-use crate::{bot::bot_types, db};
+use crate::{
+    bot::bot_types,
+    db,
+    oikotie::oikotie::{Location, Oikotie},
+};
 use anyhow::Result;
 use dotenvy::dotenv;
 use lazy_static::lazy_static;
@@ -10,14 +14,12 @@ use teloxide::{
     dptree,
     prelude::{Dispatcher, LoggingErrorHandler},
     requests::Requester,
-    types::{Message, Update},
+    types::{Message, Update, User},
     utils::command::{BotCommands, ParseError},
     Bot,
 };
 
 use super::bot_types::SubscriptionArgs;
-
-// Inspiration: https://github.com/raine/tgreddit
 
 #[derive(BotCommands, Clone)]
 #[command(
@@ -102,9 +104,47 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                     .send_message(message.chat.id, Command::descriptions().to_string())
                     .await;
             }
-            Command::Sub(mut args) => {
-                let db = db::establish_connection();
-                let chat_id = message.chat.id.0;
+            Command::Sub(args) => {
+                let user = message.from();
+                let user_id = match user {
+                    Some(u) => u.id.0,
+                    None => {
+                        error!("asd");
+                        0
+                    }
+                };
+
+                // Check if watchlist for this place already exists for this user
+                let existing = db::watchlist::get_for_user(user_id as i32);
+
+                if existing.len() != 0 {
+                    println!("TODO -> modify existing yield");
+                    tg.send_message(
+                        message.chat.id,
+                        "You already have a watchlist for this location. Updating goal yield...",
+                    )
+                    .await?;
+                } else {
+                    // Get location id
+                    let mut oikotie_client: Oikotie = Oikotie::new().await;
+                    let location_id = oikotie_client
+                        .get_location_id(&args.location)
+                        .await
+                        .unwrap_or(1645);
+                    let location = Location {
+                        id: location_id as i32,
+                        level: 4,
+                        name: args.location,
+                    };
+
+                    db::watchlist::insert(
+                        location,
+                        user_id as i32,
+                        Some(args.yield_goal.unwrap_or(0) as f64),
+                    );
+                    tg.send_message(message.chat.id, "Added to your watchlist!")
+                        .await?;
+                }
             }
             Command::Unsub(_) => todo!(),
             Command::ListSubs => todo!(),
@@ -149,63 +189,3 @@ fn parse_subscribe_message(input: String) -> Result<(SubscriptionArgs,), ParseEr
 
     Ok((args,))
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-
-//     #[test]
-//     fn test_parse_subscribe_message_only_subreddit() {
-//         let args = parse_subscribe_message("AnimalsBeingJerks".to_string()).unwrap();
-//         assert_eq!(
-//             args.0,
-//             SubscriptionArgs {
-//                 subreddit: "AnimalsBeingJerks".to_string(),
-//                 limit: None,
-//                 time: None,
-//                 filter: None,
-//             },
-//         )
-//     }
-
-//     #[test]
-//     fn test_parse_subscribe_message_strips_prefix() {
-//         let args = parse_subscribe_message("r/AnimalsBeingJerks".to_string()).unwrap();
-//         assert_eq!(
-//             args.0,
-//             SubscriptionArgs {
-//                 subreddit: "AnimalsBeingJerks".to_string(),
-//                 limit: None,
-//                 time: None,
-//                 filter: None,
-//             },
-//         );
-
-//         let args = parse_subscribe_message("/r/AnimalsBeingJerks".to_string()).unwrap();
-//         assert_eq!(
-//             args.0,
-//             SubscriptionArgs {
-//                 subreddit: "AnimalsBeingJerks".to_string(),
-//                 limit: None,
-//                 time: None,
-//                 filter: None,
-//             },
-//         )
-//     }
-
-//     #[test]
-//     fn test_parse_subscribe_message() {
-//         let args =
-//             parse_subscribe_message("AnimalsBeingJerks limit=5 time=week filter=video".to_string())
-//                 .unwrap();
-//         assert_eq!(
-//             args.0,
-//             SubscriptionArgs {
-//                 subreddit: "AnimalsBeingJerks".to_string(),
-//                 limit: Some(5),
-//                 time: Some(TopPostsTimePeriod::Week),
-//                 filter: Some(PostType::Video),
-//             },
-//         )
-//     }
-// }

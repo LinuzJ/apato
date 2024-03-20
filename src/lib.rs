@@ -2,7 +2,6 @@
 extern crate tokio;
 extern crate chrono;
 extern crate diesel;
-extern crate rocket_sync_db_pools;
 
 pub mod bot;
 mod db;

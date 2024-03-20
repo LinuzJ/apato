@@ -18,11 +18,15 @@ impl PricingProducer {
         let watchlists = watchlist::get_all();
         // TEMP Initialization of a watchlist
         if watchlists.len() == 0 {
-            watchlist::create(Location {
-                id: 1645,
-                level: 4,
-                name: String::from("Ullanlinna"),
-            });
+            watchlist::insert(
+                Location {
+                    id: 1645,
+                    level: 4,
+                    name: String::from("Ullanlinna"),
+                },
+                1,
+                Some(2.0),
+            );
         }
 
         loop {

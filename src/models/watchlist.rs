@@ -1,8 +1,9 @@
 use chrono::NaiveDateTime;
-use diesel::Queryable;
+use diesel::prelude::*;
 
-#[derive(Debug, Queryable, Clone)]
-#[diesel(table_name = watchlists)]
+#[derive(Debug, Queryable, Selectable, Clone)]
+#[diesel(table_name = crate::db::schema::watchlists)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Watchlist {
     pub id: i32,
     pub location_id: i32,
