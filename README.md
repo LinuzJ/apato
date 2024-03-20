@@ -9,6 +9,7 @@ Technologies used:
 - Rust
 - Diesel
 - Postgresql
+- Teloxide
 
 ## Usage
 
@@ -38,25 +39,25 @@ Subscribe to a watchlist at location `id` and set the wanted yield to be `yield`
    /sub {location id} {yield}
 ```
 
-Unsubscribe to a watchlist with watchlist id `id`
+Unsubscribe to a watchlist with watchlist id `id` // TODO
 
 ```
    /unsub {watchlist id}
 ```
 
-Lists all the current watchlists of the caller
+Lists all the current watchlists of the caller // TODO
 
 ```
    /listsubs
 ```
 
-Get information about all apartments currently in `watchlist id`
+Get information about all apartments currently in `watchlist id` // TODO
 
 ```
    /getall {watchlist id}
 ```
 
-Get information about all apartments in the wanted yield range currently in `watchlist id`
+Get information about all apartments in the wanted yield range currently in `watchlist id` // TODO
 
 ```
    /getallvalid
