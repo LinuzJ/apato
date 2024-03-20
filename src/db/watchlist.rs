@@ -10,6 +10,8 @@ pub struct InsertableWatchlist {
     location_id: i32,
     location_level: i32,
     location_name: String,
+    user_id: i32,
+    goal_yield: Option<f64>,
 }
 
 pub fn create(location: Location) {
@@ -30,6 +32,8 @@ fn insert(conn: &mut PgConnection, location: Location) -> Result<usize, Error> {
         location_id: location.id,
         location_level: location.level,
         location_name: location.name,
+        user_id: 1,
+        goal_yield: Some(5.0),
     };
 
     match diesel::insert_into(watchlists::table)

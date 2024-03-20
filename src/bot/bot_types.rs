@@ -10,5 +10,5 @@ pub struct Subscription {
 pub struct SubscriptionArgs {
     pub location: String,
     pub size: Option<u32>,
-    pub yield_goal: u32,
+    pub yield_goal: Option<u32>,
 }

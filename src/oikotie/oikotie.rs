@@ -1,10 +1,10 @@
-use std::fmt::Error;
-
 use crate::models::apartment::Apartment;
 use crate::models::watchlist::Watchlist;
 use crate::oikotie::helpers;
 use crate::oikotie::tokens;
 
+use anyhow::{Error, Result};
+use chrono::Local;
 use helpers::create_location_string;
 use log::error;
 use reqwest::header::{HeaderMap, HeaderValue};
@@ -20,6 +20,18 @@ pub struct Location {
     pub id: i32,
     pub level: i32,
     pub name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct LocationApiCard {
+    name: String,
+    cardId: u32,
+    cardType: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct LocationApiResponseItem {
+    card: LocationApiCard,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -95,6 +107,177 @@ impl OitkotieCardApiResponse {
 #[derive(Debug)]
 pub struct Oikotie {
     pub tokens: Option<Box<OikotieTokens>>,
+}
+
+impl Oikotie {
+    pub async fn new() -> Oikotie {
+        Oikotie {
+            tokens: get_tokens().await,
+        }
+    }
+
+    /*
+       Use Oikotie's search API to find location ID based on text query
+    */
+    pub async fn get_location_id(&mut self, location_string: &str) -> Option<u32> {
+        if self.tokens.is_none() {
+            self.tokens = get_tokens().await;
+        }
+
+        let location_response: Result<Vec<LocationApiResponseItem>, reqwest::Error> =
+            fetch_location_id(&self.tokens.as_ref().unwrap(), location_string).await;
+
+        let locations = match location_response {
+            Ok(l) => l,
+            Err(_e) => return None,
+        };
+
+        Some(locations[0].card.cardId)
+    }
+
+    /*
+       Fecthes all apartments for a certain location
+    */
+    pub async fn get_apartments(&mut self, watchlist: &Watchlist) -> Option<Vec<Apartment>> {
+        if self.tokens.is_none() {
+            self.tokens = get_tokens().await;
+        }
+
+        let is_handling_rent = false;
+
+        let location: &Location = &Location {
+            id: watchlist.id,
+            level: watchlist.location_level,
+            name: watchlist.location_name.clone(),
+        };
+
+        let cards_response: Result<OitkotieCardsApiResponse, reqwest::Error> =
+            fetch_apartments(&self.tokens.as_ref().unwrap(), location.clone(), false).await;
+
+        let cards = match cards_response {
+            Ok(c) => c.cards,
+            Err(_e) => return None,
+        };
+
+        let mut cards_iter: std::slice::Iter<'_, Card> = cards.iter();
+        let mut apartments: Vec<Apartment> = Vec::new();
+
+        while let Some(card) = cards_iter.next() {
+            let apartment: Apartment = card_into_complete_apartment(
+                &self.tokens.as_ref().unwrap(),
+                card,
+                location,
+                Some(watchlist.id),
+                is_handling_rent,
+            )
+            .await;
+            apartments.push(apartment);
+        }
+
+        return Some(apartments);
+    }
+
+    /*
+       Fecthes all rental apartments for a certain location
+    */
+    pub async fn get_rental_apartments(&mut self, location: &Location) -> Option<Vec<Apartment>> {
+        if self.tokens.is_none() {
+            self.tokens = get_tokens().await;
+        }
+
+        let is_handling_rent = true;
+
+        let location: Location = Location {
+            id: location.id,
+            level: location.level,
+            name: location.name.clone(),
+        };
+
+        let cards_response: Result<OitkotieCardsApiResponse, reqwest::Error> =
+            fetch_apartments(&self.tokens.as_ref().unwrap(), location.clone(), true).await;
+
+        let cards = match cards_response {
+            Ok(c) => c.cards,
+            Err(_e) => return None,
+        };
+
+        let mut cards_iter: std::slice::Iter<'_, Card> = cards.iter();
+        let mut apartments: Vec<Apartment> = Vec::new();
+
+        while let Some(card) = cards_iter.next() {
+            let apartment = card_into_complete_apartment(
+                &self.tokens.as_ref().unwrap(),
+                card,
+                &location,
+                None,
+                is_handling_rent,
+            )
+            .await;
+            apartments.push(apartment);
+        }
+
+        return Some(apartments);
+    }
+
+    /*
+       Calculates and returns the estimated rent for a given location
+    */
+    pub async fn get_estimated_rent(&mut self, apartment: &Apartment) -> Result<i32, Error> {
+        let location = &Location {
+            id: apartment.location_id,
+            level: apartment.location_level,
+            name: apartment.location_name.clone(),
+        };
+        let rental_apartments = self.get_rental_apartments(location).await;
+
+        match rental_apartments {
+            Some(apartments_with_rent) => {
+                let rent: i32 = estimated_rent(apartment, apartments_with_rent);
+                return Ok(rent);
+            }
+            None => panic!("Error while calculating rent"),
+        }
+    }
+}
+
+async fn fetch_location_id(
+    tokens: &OikotieTokens,
+    location_string: &str,
+) -> Result<Vec<LocationApiResponseItem>, reqwest::Error> {
+    let client: reqwest::Client = reqwest::Client::new();
+
+    // Create request with needed token headers
+    let mut oikotie_cards_api_url = String::from("https://asunnot.oikotie.fi/api/5.0/location/");
+    let params: Vec<(&str, &str)> = vec![("query", location_string), ("card_type", "4")];
+
+    let mut headers: HeaderMap = HeaderMap::new();
+    match HeaderValue::from_str(&tokens.loaded) {
+        Ok(loaded) => headers.insert("ota-loaded", loaded),
+        Err(_e) => todo!(),
+    };
+    match HeaderValue::from_str(&tokens.cuid) {
+        Ok(cuid) => headers.insert("ota-cuid", cuid),
+        Err(_e) => todo!(),
+    };
+    match HeaderValue::from_str(&tokens.token) {
+        Ok(token) => headers.insert("ota-token", token),
+        Err(_e) => todo!(),
+    };
+
+    // Perform the actual request
+    let response = client
+        .get(oikotie_cards_api_url)
+        .query(&params)
+        .headers(headers)
+        .send()
+        .await;
+
+    let api_response: Vec<LocationApiResponseItem> = match response {
+        Ok(re) => re.json().await?,
+        Err(e) => return Err(e),
+    };
+
+    return Ok(api_response);
 }
 
 async fn fetch_card(
@@ -235,117 +418,5 @@ async fn card_into_complete_apartment(
         rent: 0,
         estimated_yield: 0.0,
         watchlist_id: watchlist_id,
-    }
-}
-
-impl Oikotie {
-    pub async fn new() -> Oikotie {
-        Oikotie {
-            tokens: get_tokens().await,
-        }
-    }
-
-    /*
-       Fecthes all apartments for a certain location
-    */
-    pub async fn get_apartments(&mut self, watchlist: &Watchlist) -> Option<Vec<Apartment>> {
-        if self.tokens.is_none() {
-            self.tokens = get_tokens().await;
-        }
-
-        let is_handling_rent = false;
-
-        let location: &Location = &Location {
-            id: watchlist.id,
-            level: watchlist.location_level,
-            name: watchlist.location_name.clone(),
-        };
-
-        let cards_response: Result<OitkotieCardsApiResponse, reqwest::Error> =
-            fetch_apartments(&self.tokens.as_ref().unwrap(), location.clone(), false).await;
-
-        let cards = match cards_response {
-            Ok(c) => c.cards,
-            Err(_e) => return None,
-        };
-
-        let mut cards_iter: std::slice::Iter<'_, Card> = cards.iter();
-        let mut apartments: Vec<Apartment> = Vec::new();
-
-        while let Some(card) = cards_iter.next() {
-            let apartment: Apartment = card_into_complete_apartment(
-                &self.tokens.as_ref().unwrap(),
-                card,
-                location,
-                Some(watchlist.id),
-                is_handling_rent,
-            )
-            .await;
-            apartments.push(apartment);
-        }
-
-        return Some(apartments);
-    }
-
-    /*
-       Fecthes all rental apartments for a certain location
-    */
-    pub async fn get_rental_apartments(&mut self, location: &Location) -> Option<Vec<Apartment>> {
-        if self.tokens.is_none() {
-            self.tokens = get_tokens().await;
-        }
-
-        let is_handling_rent = true;
-
-        let location: Location = Location {
-            id: location.id,
-            level: location.level,
-            name: location.name.clone(),
-        };
-
-        let cards_response: Result<OitkotieCardsApiResponse, reqwest::Error> =
-            fetch_apartments(&self.tokens.as_ref().unwrap(), location.clone(), true).await;
-
-        let cards = match cards_response {
-            Ok(c) => c.cards,
-            Err(_e) => return None,
-        };
-
-        let mut cards_iter: std::slice::Iter<'_, Card> = cards.iter();
-        let mut apartments: Vec<Apartment> = Vec::new();
-
-        while let Some(card) = cards_iter.next() {
-            let apartment = card_into_complete_apartment(
-                &self.tokens.as_ref().unwrap(),
-                card,
-                &location,
-                None,
-                is_handling_rent,
-            )
-            .await;
-            apartments.push(apartment);
-        }
-
-        return Some(apartments);
-    }
-
-    /*
-       Calculates and returns the estimated rent for a given location
-    */
-    pub async fn get_estimated_rent(&mut self, apartment: &Apartment) -> Result<i32, Error> {
-        let location = &Location {
-            id: apartment.location_id,
-            level: apartment.location_level,
-            name: apartment.location_name.clone(),
-        };
-        let rental_apartments = self.get_rental_apartments(location).await;
-
-        match rental_apartments {
-            Some(apartments_with_rent) => {
-                let rent: i32 = estimated_rent(apartment, apartments_with_rent);
-                return Ok(rent);
-            }
-            None => panic!("Error while calculating rent"),
-        }
     }
 }

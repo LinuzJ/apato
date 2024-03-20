@@ -73,7 +73,7 @@ pub fn calculate_rental_yield(
     let net_cash_flow = rent as f64 - additional_cost as f64 - mortgage_payment;
 
     // Calculate rental yield (net cash flow / initial investment)
-    let initial_investment = price as f64 * 0.2; // For simpolicity for now, assume 20% downpayments
+    let initial_investment = price as f64 * 0.2; // For simplicity for now, assume 20% down-payments
     let rental_yield = net_cash_flow / initial_investment;
 
     // Convert to yearly yield (multiply by 12)

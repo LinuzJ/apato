@@ -1,4 +1,4 @@
-use crate::bot::bot_types;
+use crate::{bot::bot_types, db};
 use anyhow::Result;
 use dotenvy::dotenv;
 use lazy_static::lazy_static;
@@ -56,9 +56,10 @@ impl ApatoBot {
         let telegram_bot_token = env::var("TELEGRAM_TOKEN").expect("TELEGRAM_TOKEN must be set");
 
         let tg = Arc::new(Bot::new(telegram_bot_token));
-        tg.set_my_commands(Command::bot_commands()).await;
+        tg.set_my_commands(Command::bot_commands()).await?;
 
         let handler = Update::filter_message().branch(
+            // TODO Fix this...
             dptree::filter(|msg: Message| msg.from().map(|user| true).unwrap_or_default())
                 .filter_command::<Command>()
                 .endpoint(handle_command),
@@ -101,7 +102,10 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                     .send_message(message.chat.id, Command::descriptions().to_string())
                     .await;
             }
-            Command::Sub(_) => todo!(),
+            Command::Sub(mut args) => {
+                let db = db::establish_connection();
+                let chat_id = message.chat.id.0;
+            }
             Command::Unsub(_) => todo!(),
             Command::ListSubs => todo!(),
             Command::GetAll(_) => todo!(),
@@ -114,24 +118,33 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
     if let Err(err) = handle(&message, &tg, command).await {
         error!("failed to handle message: {}", err);
         tg.send_message(message.chat.id, "Something went wrong")
-            .await;
+            .await?;
     }
 
     Ok(())
 }
 
 fn parse_subscribe_message(input: String) -> Result<(SubscriptionArgs,), ParseError> {
-    // lazy_static! {
-    //     static ref SUBREDDIT_RE: Regex = Regex::new(r"^[^\s]+").unwrap();
-    //     static ref LIMIT_RE: Regex = Regex::new(r"\blimit=(\d+)\b").unwrap();
-    //     static ref TIME_RE: Regex = Regex::new(r"\btime=(\w+)\b").unwrap();
-    //     static ref FILTER_RE: Regex = Regex::new(r"\bfilter=(\w+)\b").unwrap();
-    // }
+    lazy_static! {
+        static ref LOCATION_STRING_REGEX: Regex = Regex::new(r"^[^\s]+").unwrap();
+        static ref YIELD_REGEX: Regex = Regex::new(r"\byield=(\d+)\b").unwrap();
+    }
+
+    let location = LOCATION_STRING_REGEX
+        .find(&input)
+        .ok_or_else(|| ParseError::Custom("No location given".into()))?
+        .as_str()
+        .to_string();
+
+    let yield_goal: Option<u32> = YIELD_REGEX
+        .captures(&input)
+        .and_then(|caps| caps.get(1))
+        .and_then(|m| m.as_str().parse().ok());
 
     let args = SubscriptionArgs {
-        location: 1.to_string(),
+        location,
         size: Some(1),
-        yield_goal: 1,
+        yield_goal,
     };
 
     Ok((args,))

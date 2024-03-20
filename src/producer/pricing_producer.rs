@@ -15,8 +15,8 @@ impl PricingProducer {
         let interval_in_seconds = 5 * 60;
         let mut interval = time::interval(Duration::from_secs(interval_in_seconds));
 
-        // // TEMP Initialization
         let watchlists = watchlist::get_all();
+        // TEMP Initialization of a watchlist
         if watchlists.len() == 0 {
             watchlist::create(Location {
                 id: 1645,
@@ -26,13 +26,6 @@ impl PricingProducer {
         }
 
         loop {
-            /*  TODO
-             *    - get watchlists -> locations - DONE
-             *    - for each location -> calculate price WIP - something not working still
-             *    - Smarter producer/consumer logic for handling watchlist calculations?
-             *    - insert into apartments table - DONE
-             */
-
             info!("Starting PricingProducer run");
             let start = Instant::now();
 

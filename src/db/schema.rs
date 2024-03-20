@@ -25,6 +25,8 @@ diesel::table! {
         location_id -> Int4,
         location_level -> Int4,
         location_name -> Text,
+        user_id -> Int4,
+        goal_yield -> Nullable<Float8>,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
     }
