@@ -31,8 +31,6 @@ impl PricingProducer {
              *    - for each location -> calculate price WIP - something not working still
              *    - Smarter producer/consumer logic for handling watchlist calculations?
              *    - insert into apartments table - DONE
-             *    - /api/{watchlist} -> summary of apartments
-             *    - /api/add_watchlist -> adds watchlist
              */
 
             info!("Starting PricingProducer run");
