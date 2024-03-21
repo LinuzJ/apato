@@ -1,6 +1,7 @@
 use crate::{
     bot::bot_types,
-    db,
+    db::{self, watchlist},
+    models::watchlist::Watchlist,
     oikotie::oikotie::{Location, Oikotie},
 };
 use anyhow::Result;
@@ -34,8 +35,11 @@ pub enum Command {
         parse_with = parse_subscribe_message
     )]
     Sub(SubscriptionArgs),
-    #[command(description = "Unsubscribe to a watchlist. Use watchlist ID.")]
-    Unsub(String),
+    #[command(
+        description = "Unsubscribe to a watchlist. Use watchlist ID.",
+        parse_with = parse_unsubscribe_message
+    )]
+    Unsub(i32),
     #[command(description = "List current active watchlist subscriptions")]
     ListSubs,
     #[command(description = "Get all apartments/houses in watchlist")]
@@ -146,7 +150,33 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                         .await?;
                 }
             }
-            Command::Unsub(_) => todo!(),
+            Command::Unsub(watchlist_id) => {
+                let user = message.from();
+                let user_id = match user {
+                    Some(u) => u.id.0,
+                    None => {
+                        error!("asd");
+                        0
+                    }
+                };
+
+                // Check if watchlist for this place already exists for this user
+                let existing: Vec<Watchlist> = db::watchlist::get_for_user(user_id as i32)
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, watchlist)| watchlist.id == watchlist_id)
+                    .map(|(_, &ref item)| item.to_owned())
+                    .collect();
+
+                if existing.len() == 0 {
+                    tg.send_message(message.chat.id, "You don't have a watchlist with this ID")
+                        .await?;
+                } else {
+                    db::watchlist::delete(watchlist_id);
+                    tg.send_message(message.chat.id, "Deleted watchlist!")
+                        .await?;
+                }
+            }
             Command::ListSubs => todo!(),
             Command::GetAll(_) => todo!(),
             Command::GetAllValid(_) => todo!(),
@@ -188,4 +218,9 @@ fn parse_subscribe_message(input: String) -> Result<(SubscriptionArgs,), ParseEr
     };
 
     Ok((args,))
+}
+
+fn parse_unsubscribe_message(input: String) -> Result<(i32,), ParseError> {
+    let watchlist_id = input.parse::<i32>().unwrap();
+    Ok((watchlist_id,))
 }

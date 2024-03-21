@@ -1,5 +1,7 @@
 use crate::{models::watchlist::Watchlist, oikotie::oikotie::Location};
 use diesel::{prelude::*, result::Error};
+use log::error;
+use log::info;
 
 use super::{establish_connection, schema::watchlists, schema::watchlists::dsl::*};
 #[derive(Insertable)]
@@ -33,6 +35,17 @@ pub fn insert(location: Location, new_user_id: i32, new_goal_yield: Option<f64>)
         Err(e) => {
             println!("Error: {:?}", e);
         }
+    }
+}
+
+pub fn delete(watchlist_id: i32) {
+    let mut connection = establish_connection();
+
+    let deletion = diesel::delete(watchlists.filter(id.eq(watchlist_id))).execute(&mut connection);
+
+    match deletion {
+        Ok(a) => info!("Deleted row in watchlists with ID: {:?}", a),
+        Err(e) => error!("Error while deleting row in watchlists: {:?}", e),
     }
 }
 
