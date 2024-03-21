@@ -22,6 +22,8 @@ use teloxide::{
 
 use super::bot_types::SubscriptionArgs;
 
+// Inspiration: https://github.com/raine/tgreddit
+
 #[derive(BotCommands, Clone)]
 #[command(
     rename_rule = "lowercase",
@@ -177,7 +179,26 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                         .await?;
                 }
             }
-            Command::ListSubs => todo!(),
+            Command::ListSubs => {
+                let user = message.from();
+                let user_id = match user {
+                    Some(u) => u.id.0,
+                    None => {
+                        error!("asd");
+                        0
+                    }
+                };
+
+                // Check if watchlist for this place already exists for this user
+                let existing: Vec<Watchlist> = db::watchlist::get_for_user(user_id as i32);
+                let formatted: Vec<String> = existing
+                    .iter()
+                    .map(|watchlist| watchlist.location_name.clone())
+                    .collect();
+
+                let joined_formatted = formatted.join("\n");
+                tg.send_message(message.chat.id, joined_formatted).await?;
+            }
             Command::GetAll(_) => todo!(),
             Command::GetAllValid(_) => todo!(),
         };
@@ -224,3 +245,62 @@ fn parse_unsubscribe_message(input: String) -> Result<(i32,), ParseError> {
     let watchlist_id = input.parse::<i32>().unwrap();
     Ok((watchlist_id,))
 }
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+
+//     #[test]
+//     fn test_parse_subscribe_message_only_subreddit() {
+//         let args = parse_subscribe_message("AnimalsBeingJerks".to_string()).unwrap();
+//         assert_eq!(
+//             args.0,
+//             SubscriptionArgs {
+//                 subreddit: "AnimalsBeingJerks".to_string(),
+//                 limit: None,
+//                 time: None,
+//                 filter: None,
+//             },
+//         )
+//     }
+
+//     #[test]
+//     fn test_parse_subscribe_message_strips_prefix() {
+//         let args = parse_subscribe_message("r/AnimalsBeingJerks".to_string()).unwrap();
+//         assert_eq!(
+//             args.0,
+//             SubscriptionArgs {
+//                 subreddit: "AnimalsBeingJerks".to_string(),
+//                 limit: None,
+//                 time: None,
+//                 filter: None,
+//             },
+//         );
+
+//         let args = parse_subscribe_message("/r/AnimalsBeingJerks".to_string()).unwrap();
+//         assert_eq!(
+//             args.0,
+//             SubscriptionArgs {
+//                 subreddit: "AnimalsBeingJerks".to_string(),
+//                 limit: None,
+//                 time: None,
+//                 filter: None,
+//             },
+//         )
+//     }
+
+//     #[test]
+//     fn test_parse_subscribe_message() {
+//         let args =
+//             parse_subscribe_message("AnimalsBeingJerks limit=5 time=week filter=video".to_string())
+//                 .unwrap();
+//         assert_eq!(
+//             args.0,
+//             SubscriptionArgs {
+//                 subreddit: "AnimalsBeingJerks".to_string(),
+//                 limit: Some(5),
+//                 time: Some(TopPostsTimePeriod::Week),
+//                 filter: Some(PostType::Video),
+//             },
+//         )
+//     }
+// }
