@@ -1,14 +1,12 @@
 use log::error;
 
 use crate::{
-    db::{self, establish_connection},
-    interest_rate::interest_rate_client,
-    models::apartment::Apartment,
+    db, interest_rate::interest_rate_client, models::apartment::InsertableApartment,
     oikotie::oikotie::Oikotie,
 };
 
 pub async fn process_apartment_calculations(
-    potential_apartments: Option<Vec<Apartment>>,
+    potential_apartments: Option<Vec<InsertableApartment>>,
     mut oikotie: Oikotie,
 ) {
     match potential_apartments {
@@ -24,7 +22,7 @@ pub async fn process_apartment_calculations(
                 let estimated_rent = oikotie.get_estimated_rent(&apartment).await;
 
                 match estimated_rent {
-                    Ok(rent) => apartment.rent = rent,
+                    Ok(rent) => apartment.rent = Some(rent),
                     Err(e) => error!("{}", e),
                 }
 
@@ -32,9 +30,9 @@ pub async fn process_apartment_calculations(
 
                 let apartment_yield = match interest_rate {
                     Ok(interest_rate) => calculate_rental_yield(
-                        apartment.price.clone(),
-                        apartment.rent,
-                        apartment.additional_costs,
+                        apartment.price.clone().unwrap(),
+                        apartment.rent.unwrap(),
+                        apartment.additional_costs.unwrap(),
                         interest_rate,
                     ),
                     Err(e) => {
@@ -42,8 +40,21 @@ pub async fn process_apartment_calculations(
                         0.0
                     }
                 };
-                apartment.estimated_yield = apartment_yield;
-                db::apartment::insert(&mut establish_connection(), apartment.clone());
+
+                let insertable_apartment = InsertableApartment {
+                    card_id: apartment.card_id,
+                    location_id: apartment.location_id,
+                    location_level: apartment.location_level,
+                    location_name: apartment.location_name,
+                    size: apartment.size,
+                    rooms: apartment.rooms,
+                    price: apartment.price,
+                    additional_costs: apartment.additional_costs,
+                    rent: apartment.rent,
+                    estimated_yield: Some(apartment_yield),
+                    watchlist_id: apartment.watchlist_id,
+                };
+                db::apartment::insert(insertable_apartment);
             }
         }
         None => println!("No apartments added.."),

@@ -1,7 +1,7 @@
 use rand::Rng;
 use regex::Regex;
 
-use crate::models::apartment::Apartment;
+use crate::models::apartment::InsertableApartment;
 
 fn is_within_percentage(value: f32, reference: f32, percentage: f32) -> bool {
     let difference = (value - reference).abs();
@@ -52,18 +52,21 @@ pub fn get_rent_regex(rent_string: String) -> i32 {
     return result;
 }
 
-pub fn estimated_rent(apartment: &Apartment, apartments: Vec<Apartment>) -> i32 {
+pub fn estimated_rent(
+    apartment: &InsertableApartment,
+    apartments: Vec<InsertableApartment>,
+) -> i32 {
     let size_buffer_percentage = 10.0;
     let similar_size_apartment_rents: Vec<i32> = apartments
         .iter()
         .filter(|ap| {
             is_within_percentage(
-                ap.size as f32,
-                apartment.size as f32,
+                ap.size.unwrap() as f32,
+                apartment.size.unwrap() as f32,
                 size_buffer_percentage,
             )
         })
-        .map(|ap| ap.rent)
+        .map(|ap| ap.rent.unwrap())
         .collect();
 
     let sum: i32 = similar_size_apartment_rents.iter().sum();
@@ -74,19 +77,22 @@ pub fn estimated_rent(apartment: &Apartment, apartments: Vec<Apartment>) -> i32 
     if count == 0.0 {
         #[allow(unused_assignments)]
         let mut estimated_rent: f64 = 0.0;
-        let mut rent_only: Vec<i32> = apartments.iter().map(|ap| ap.rent).collect();
-        let mut size_only: Vec<i32> = apartments.iter().map(|ap| ap.size as i32).collect();
+        let mut rent_only: Vec<i32> = apartments.iter().map(|ap| ap.rent.unwrap()).collect();
+        let mut size_only: Vec<i32> = apartments
+            .iter()
+            .map(|ap| ap.size.unwrap() as i32)
+            .collect();
 
         let rent_median: f64 = calculate_median(&mut rent_only);
         let size_median: f64 = calculate_median(&mut size_only);
 
-        if apartment.rent as f64 > rent_median {
+        if apartment.rent.unwrap() as f64 > rent_median {
             let percentage_bigger_than_median =
-                ((apartment.size - size_median) / size_median) + 1.0;
+                ((apartment.size.unwrap() - size_median) / size_median) + 1.0;
             estimated_rent = (rent_median as f64) * percentage_bigger_than_median;
         } else {
             let percentage_smaller_than_median =
-                1.0 - ((size_median - apartment.size) / size_median);
+                1.0 - ((size_median - apartment.size.unwrap()) / size_median);
             estimated_rent = (rent_median as f64) * percentage_smaller_than_median;
         }
 

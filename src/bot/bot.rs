@@ -32,24 +32,32 @@ use super::bot_types::SubscriptionArgs;
 pub enum Command {
     #[command(description = "Help")]
     Help,
+
     #[command(
         description = "Subscribe to a location watchlist",
         parse_with = parse_subscribe_message
     )]
     Sub(SubscriptionArgs),
+
     #[command(
         description = "Unsubscribe to a watchlist. Use watchlist ID.",
-        parse_with = parse_unsubscribe_message
+        parse_with = parse_string_to_int_message
     )]
     Unsub(i32),
+
     #[command(description = "List current active watchlist subscriptions")]
-    ListSubs,
-    #[command(description = "Get all apartments/houses in watchlist")]
-    GetAll(String),
-    #[command(
-        description = "Get all apartments/houses in watchlist that are above or equal to the yield goal"
+    ListSubs(i32),
+
+    #[command(description = "Get all apartments/houses in watchlist",
+        parse_with = parse_string_to_int_message
     )]
-    GetAllValid(String),
+    GetAll(i32),
+
+    #[command(
+        description = "Get all apartments/houses in watchlist that are above or equal to the yield goal",
+        parse_with = parse_string_to_int_message
+    )]
+    GetAllValid(i32),
 }
 
 pub struct ApatoBot {
@@ -123,7 +131,7 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                 // Check if watchlist for this place already exists for this user
                 let existing = db::watchlist::get_for_user(user_id as i32);
 
-                if existing.len() != 0 {
+                if existing.len() == 123 {
                     println!("TODO -> modify existing yield");
                     tg.send_message(
                         message.chat.id,
@@ -179,7 +187,7 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                         .await?;
                 }
             }
-            Command::ListSubs => {
+            Command::ListSubs(_) => {
                 let user = message.from();
                 let user_id = match user {
                     Some(u) => u.id.0,
@@ -199,10 +207,50 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                 let joined_formatted = formatted.join("\n");
                 tg.send_message(message.chat.id, joined_formatted).await?;
             }
-            Command::GetAll(_) => todo!(),
-            Command::GetAllValid(_) => todo!(),
+            Command::GetAll(watchlist_id) => {
+                let apartments = db::apartment::get_all_for_watchlist(watchlist_id);
+                let formatted: Vec<String> = apartments
+                    .iter()
+                    .enumerate()
+                    .map(|(index, apartment)| {
+                        format!(
+                            "Apartment: {} \n Location: {} \n Size: {} \n Price: {} \n Estimated Yield: {}",
+                            index,
+                            apartment
+                                .location_name
+                                .as_ref()
+                                .unwrap_or(&"N/A".to_string()),
+                            apartment.size.unwrap_or(0.0),
+                            apartment.price.unwrap_or(0),
+                            apartment.estimated_yield.unwrap_or(0.0)
+                        )
+                    })
+                    .collect();
+                for message_to_send in formatted {
+                    tg.send_message(message.chat.id, message_to_send).await?;
+                }
+            }
+            Command::GetAllValid(watchlist_id) => todo!(),
         };
 
+        let user = message.from();
+        let user_id = match user {
+            Some(u) => u.id.0,
+            None => {
+                error!("asd");
+                0
+            }
+        };
+
+        // Check if watchlist for this place already exists for this user
+        let existing: Vec<Watchlist> = db::watchlist::get_for_user(user_id as i32);
+        let formatted: Vec<String> = existing
+            .iter()
+            .map(|watchlist| watchlist.location_name.clone())
+            .collect();
+
+        let joined_formatted = formatted.join("\n");
+        tg.send_message(message.chat.id, joined_formatted).await?;
         Ok(())
     }
 
@@ -241,7 +289,8 @@ fn parse_subscribe_message(input: String) -> Result<(SubscriptionArgs,), ParseEr
     Ok((args,))
 }
 
-fn parse_unsubscribe_message(input: String) -> Result<(i32,), ParseError> {
+fn parse_string_to_int_message(input: String) -> Result<(i32,), ParseError> {
+    println!("{:?}", input);
     let watchlist_id = input.parse::<i32>().unwrap();
     Ok((watchlist_id,))
 }

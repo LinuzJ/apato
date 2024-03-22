@@ -1,10 +1,9 @@
-use crate::models::apartment::Apartment;
+use crate::models::apartment::InsertableApartment;
 use crate::models::watchlist::Watchlist;
 use crate::oikotie::helpers;
 use crate::oikotie::tokens;
 
 use anyhow::{Error, Result};
-use chrono::Local;
 use helpers::create_location_string;
 use log::error;
 use reqwest::header::{HeaderMap, HeaderValue};
@@ -138,7 +137,10 @@ impl Oikotie {
     /*
        Fecthes all apartments for a certain location
     */
-    pub async fn get_apartments(&mut self, watchlist: &Watchlist) -> Option<Vec<Apartment>> {
+    pub async fn get_apartments(
+        &mut self,
+        watchlist: &Watchlist,
+    ) -> Option<Vec<InsertableApartment>> {
         if self.tokens.is_none() {
             self.tokens = get_tokens().await;
         }
@@ -160,10 +162,10 @@ impl Oikotie {
         };
 
         let mut cards_iter: std::slice::Iter<'_, Card> = cards.iter();
-        let mut apartments: Vec<Apartment> = Vec::new();
+        let mut apartments: Vec<InsertableApartment> = Vec::new();
 
         while let Some(card) = cards_iter.next() {
-            let apartment: Apartment = card_into_complete_apartment(
+            let apartment: InsertableApartment = card_into_complete_apartment(
                 &self.tokens.as_ref().unwrap(),
                 card,
                 location,
@@ -180,7 +182,10 @@ impl Oikotie {
     /*
        Fecthes all rental apartments for a certain location
     */
-    pub async fn get_rental_apartments(&mut self, location: &Location) -> Option<Vec<Apartment>> {
+    pub async fn get_rental_apartments(
+        &mut self,
+        location: &Location,
+    ) -> Option<Vec<InsertableApartment>> {
         if self.tokens.is_none() {
             self.tokens = get_tokens().await;
         }
@@ -202,7 +207,7 @@ impl Oikotie {
         };
 
         let mut cards_iter: std::slice::Iter<'_, Card> = cards.iter();
-        let mut apartments: Vec<Apartment> = Vec::new();
+        let mut apartments: Vec<InsertableApartment> = Vec::new();
 
         while let Some(card) = cards_iter.next() {
             let apartment = card_into_complete_apartment(
@@ -222,11 +227,14 @@ impl Oikotie {
     /*
        Calculates and returns the estimated rent for a given location
     */
-    pub async fn get_estimated_rent(&mut self, apartment: &Apartment) -> Result<i32, Error> {
+    pub async fn get_estimated_rent(
+        &mut self,
+        apartment: &InsertableApartment,
+    ) -> Result<i32, Error> {
         let location = &Location {
-            id: apartment.location_id,
-            level: apartment.location_level,
-            name: apartment.location_name.clone(),
+            id: apartment.location_id.unwrap(),
+            level: apartment.location_level.unwrap(),
+            name: apartment.location_name.clone().unwrap(),
         };
         let rental_apartments = self.get_rental_apartments(location).await;
 
@@ -368,22 +376,22 @@ async fn card_into_complete_apartment(
     location: &Location,
     optional_watchlist_id: Option<i32>,
     is_handling_rent: bool,
-) -> Apartment {
+) -> InsertableApartment {
     if is_handling_rent {
         // Because rent is in weird string format -> regex match to i32
         let rent = get_rent_regex(card.price.clone());
 
-        return Apartment {
-            card_id: card.id.to_string(),
-            location_id: location.id,
-            location_level: location.level,
-            location_name: location.name.clone(),
-            size: card.size as f64,
-            rooms: card.rooms as i32,
-            price: 0,
-            additional_costs: 0,
-            rent: rent,
-            estimated_yield: 0.0,
+        return InsertableApartment {
+            card_id: Some(card.id.to_string()),
+            location_id: Some(location.id),
+            location_level: Some(location.level),
+            location_name: Some(location.name.clone()),
+            size: Some(card.size as f64),
+            rooms: Some(card.rooms as i32),
+            price: Some(0),
+            additional_costs: Some(0),
+            rent: Some(rent),
+            estimated_yield: Some(0.0),
             watchlist_id: -1,
         };
     }
@@ -406,17 +414,17 @@ async fn card_into_complete_apartment(
         None => -1,
     };
 
-    Apartment {
-        card_id: card.id.to_string(),
-        location_id: location.id,
-        location_level: location.level,
-        location_name: location.name.clone(),
-        size: card.size as f64,
-        rooms: card.rooms as i32,
-        price: card_data.price_data.price as i32,
-        additional_costs: card_data.ad_data.maintenance_fee as i32,
-        rent: 0,
-        estimated_yield: 0.0,
+    InsertableApartment {
+        card_id: Some(card.id.to_string()),
+        location_id: Some(location.id),
+        location_level: Some(location.level),
+        location_name: Some(location.name.clone()),
+        size: Some(card.size as f64),
+        rooms: Some(card.rooms as i32),
+        price: Some(card_data.price_data.price as i32),
+        additional_costs: Some(card_data.ad_data.maintenance_fee as i32),
+        rent: Some(0),
+        estimated_yield: Some(0.0),
         watchlist_id: watchlist_id,
     }
 }

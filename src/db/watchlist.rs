@@ -1,23 +1,15 @@
+use crate::models::watchlist::InsertableWatchlist;
 use crate::{models::watchlist::Watchlist, oikotie::oikotie::Location};
-use diesel::{prelude::*, result::Error};
+use diesel::prelude::*;
 use log::error;
 use log::info;
 
 use super::{establish_connection, schema::watchlists, schema::watchlists::dsl::*};
-#[derive(Insertable)]
-#[diesel(table_name = watchlists)]
-pub struct InsertableWatchlist {
-    location_id: i32,
-    location_level: i32,
-    location_name: String,
-    user_id: i32,
-    goal_yield: Option<f64>,
-}
 
 pub fn insert(location: Location, new_user_id: i32, new_goal_yield: Option<f64>) {
     let mut connection = establish_connection();
 
-    let insertable: &InsertableWatchlist = &InsertableWatchlist {
+    let watchlist: InsertableWatchlist = InsertableWatchlist {
         location_id: location.id,
         location_level: location.level,
         location_name: location.name,
@@ -26,7 +18,7 @@ pub fn insert(location: Location, new_user_id: i32, new_goal_yield: Option<f64>)
     };
 
     match diesel::insert_into(watchlists::table)
-        .values(insertable)
+        .values(watchlist)
         .execute(&mut connection)
     {
         Ok(n) => {
