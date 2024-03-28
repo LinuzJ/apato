@@ -11,7 +11,7 @@ pub struct InsertableWatchlist {
     pub goal_yield: Option<f64>,
 }
 
-#[derive(Debug, Queryable, Selectable, Clone)]
+#[derive(Debug, Queryable, Selectable, Identifiable, Clone)]
 #[diesel(table_name = crate::db::schema::watchlists)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Watchlist {

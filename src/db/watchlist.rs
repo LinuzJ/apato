@@ -41,12 +41,23 @@ pub fn delete(watchlist_id: i32) {
     }
 }
 
+pub async fn update_yield(target_id: i32, new_yield: f64) -> Result<(), anyhow::Error> {
+    let connection = &mut establish_connection();
+
+    diesel::update(watchlists)
+        .filter(id.eq(target_id))
+        .set(goal_yield.eq(new_yield))
+        .execute(connection)?;
+
+    Ok(())
+}
+
 pub fn get_all() -> Vec<Watchlist> {
-    let mut connection = establish_connection();
+    let connection = &mut establish_connection();
 
     let all_watchlists: Result<Vec<Watchlist>, diesel::result::Error> = watchlists::table
         .select(watchlists::table::all_columns())
-        .get_results(&mut connection);
+        .get_results(connection);
 
     match all_watchlists {
         Ok(w) => {

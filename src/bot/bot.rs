@@ -134,42 +134,60 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
 
                 // Check if watchlist for this place already exists for this user
                 let existing = db::watchlist::get_for_user(user_id as i32);
-
-                if existing.len() == 123 {
-                    println!("TODO -> modify existing yield");
+                if existing.len() > 0 {
                     tg.send_message(
                         message.chat.id,
                         "You already have a watchlist for this location. Updating goal yield...",
                     )
                     .await?;
-                } else {
-                    let mut oikotie_client: Oikotie = Oikotie::new().await;
-                    let location_id_response = oikotie_client.get_location_id(&args.location).await;
-                    let mut location: Option<Location> = None;
 
-                    match location_id_response {
-                        Ok(location_id) => {
-                            location = Some(Location {
-                                id: location_id as i32,
-                                level: 4,
-                                name: args.location,
-                            })
-                        }
+                    match db::watchlist::update_yield(
+                        existing[0].id,
+                        args.yield_goal.unwrap().into(),
+                    )
+                    .await
+                    {
+                        Ok(()) => (), // TODO Clean up this :D
                         Err(e) => {
-                            let err_str = e.to_string();
-                            tg.send_message(message.chat.id, err_str).await?;
-                        }
-                    }
-
-                    if let Some(loc) = location {
-                        db::watchlist::insert(
-                            loc,
-                            user_id as i32,
-                            Some(args.yield_goal.unwrap_or(0) as f64),
-                        );
-                        tg.send_message(message.chat.id, "Added to your watchlist!")
+                            tg.send_message(
+                                message.chat.id,
+                                format!("Error while updating yield: {}", e.to_string()),
+                            )
                             .await?;
+                            ()
+                        }
+                    };
+
+                    return Ok(());
+                }
+
+                // Create new watchlist
+                let mut oikotie_client: Oikotie = Oikotie::new().await;
+                let location_id_response = oikotie_client.get_location_id(&args.location).await;
+                let mut location: Option<Location> = None;
+
+                match location_id_response {
+                    Ok(location_id) => {
+                        location = Some(Location {
+                            id: location_id as i32,
+                            level: 4, // TODO maybe not just hardcode this
+                            name: args.location,
+                        })
                     }
+                    Err(e) => {
+                        let err_str = e.to_string();
+                        tg.send_message(message.chat.id, err_str).await?;
+                    }
+                }
+
+                if let Some(loc) = location {
+                    db::watchlist::insert(
+                        loc,
+                        user_id as i32,
+                        Some(args.yield_goal.unwrap_or(0) as f64),
+                    );
+                    tg.send_message(message.chat.id, "Added to your watchlist!")
+                        .await?;
                 }
             }
             Command::Unsub(watchlist_id) => {

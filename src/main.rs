@@ -11,7 +11,7 @@ async fn main() -> Result<()> {
 
     // Telegram bot
     let bot = ApatoBot::new().await?;
-    let (bot_handle, shutdown_token) = bot.spawn();
+    let (bot_handle, s) = bot.spawn();
 
     if let Err(err) = tokio::try_join!(consumer_handle, bot_handle) {
         error!("Error: {:?}", err)
