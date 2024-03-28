@@ -1,0 +1,7 @@
+db_path = "postgresql://apato:apato@localhost:5432/postgres"
+telegram_bot_token = "xxx"
+loan_duration_years = 25
+down_payment_percentage = 20
+avg_vacant_month_per_year = 1
+avg_estimated_rent_increase_per_year = 1
+avg_renovation_costs = 5000

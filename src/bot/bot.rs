@@ -1,14 +1,14 @@
 use crate::{
+    config::Config,
     db,
     models::{apartment::Apartment, watchlist::Watchlist},
     oikotie::oikotie::{Location, Oikotie},
 };
 use anyhow::Result;
-use dotenvy::dotenv;
 use lazy_static::lazy_static;
 use log::error;
 use regex::Regex;
-use std::{env, sync::Arc};
+use std::sync::Arc;
 use teloxide::{
     dispatching::{DefaultKey, HandlerExt, UpdateFilterExt},
     dptree,
@@ -63,22 +63,20 @@ pub struct ApatoBot {
 }
 
 impl ApatoBot {
-    pub async fn new() -> Result<Self> {
-        dotenv().ok();
-
-        let telegram_bot_token = env::var("TELEGRAM_TOKEN").expect("TELEGRAM_TOKEN must be set");
+    pub async fn new(config: &Config) -> Result<Self> {
+        let telegram_bot_token = &config.telegram_bot_token;
 
         let tg = Arc::new(Bot::new(telegram_bot_token));
         tg.set_my_commands(Command::bot_commands()).await?;
 
         let handler = Update::filter_message().branch(
-            // TODO Fix this...
             dptree::entry()
                 .filter_command::<Command>()
                 .endpoint(handle_command),
         );
 
         let dispatcher = Dispatcher::builder(tg.clone(), handler)
+            .dependencies(dptree::deps![config.clone()])
             .default_handler(|upd| async move { println!("{:?}", upd) })
             .error_handler(LoggingErrorHandler::with_custom_text(
                 "an error has occurred in the dispatcher",
@@ -107,8 +105,18 @@ impl ApatoBot {
     }
 }
 
-pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) -> Result<()> {
-    async fn handle(message: &Message, tg: &Bot, command: Command) -> Result<()> {
+pub async fn handle_command(
+    message: Message,
+    tg: Arc<Bot>,
+    command: Command,
+    config: Arc<Config>,
+) -> Result<()> {
+    async fn handle(
+        message: &Message,
+        tg: &Bot,
+        command: Command,
+        config: &Arc<Config>,
+    ) -> Result<()> {
         match command {
             Command::Help => {
                 let _ = tg
@@ -131,7 +139,7 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                 }
 
                 // Check if watchlist for this place already exists for this user
-                let existing = db::watchlist::get_for_user(user_id as i32);
+                let existing = db::watchlist::get_for_user(&config, user_id as i32);
                 if existing.len() > 0 {
                     tg.send_message(
                         message.chat.id,
@@ -140,6 +148,7 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                     .await?;
 
                     match db::watchlist::update_yield(
+                        &config,
                         existing[0].id,
                         args.yield_goal.unwrap().into(),
                     )
@@ -180,6 +189,7 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
 
                 if let Some(loc) = location {
                     db::watchlist::insert(
+                        &config,
                         loc,
                         user_id as i32,
                         Some(args.yield_goal.unwrap_or(0) as f64),
@@ -199,7 +209,7 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                 };
 
                 // Check if watchlist for this place already exists for this user
-                let existing: Vec<Watchlist> = db::watchlist::get_for_user(user_id as i32)
+                let existing: Vec<Watchlist> = db::watchlist::get_for_user(&config, user_id as i32)
                     .iter()
                     .filter(|watchlist| watchlist.id == watchlist_id)
                     .map(|&ref item| item.to_owned())
@@ -209,7 +219,7 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                     tg.send_message(message.chat.id, "You don't have a watchlist with this ID")
                         .await?;
                 } else {
-                    db::watchlist::delete(watchlist_id);
+                    db::watchlist::delete(&config, watchlist_id);
                     tg.send_message(message.chat.id, "Deleted watchlist!")
                         .await?;
                 }
@@ -224,7 +234,7 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                     }
                 };
                 // Check if watchlist for this place already exists for this user
-                let existing: Vec<Watchlist> = db::watchlist::get_for_user(user_id as i32);
+                let existing: Vec<Watchlist> = db::watchlist::get_for_user(&config, user_id as i32);
                 let formatted: Vec<String> = existing
                     .iter()
                     .enumerate()
@@ -247,7 +257,8 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                 }
             }
             Command::GetAll(watchlist_id) => {
-                let all_apartments_result = db::apartment::get_all_for_watchlist(watchlist_id);
+                let all_apartments_result =
+                    db::apartment::get_all_for_watchlist(&config, watchlist_id);
                 let mut all_apartments: Option<Vec<Apartment>> = None;
 
                 match all_apartments_result {
@@ -266,7 +277,8 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                 }
             }
             Command::GetAllValid(watchlist_id) => {
-                let apartments_result = db::apartment::get_all_valid_for_watchlist(watchlist_id);
+                let apartments_result =
+                    db::apartment::get_all_valid_for_watchlist(&config, watchlist_id);
                 let mut apartments: Option<Vec<Apartment>> = None;
 
                 match apartments_result {
@@ -288,7 +300,7 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
         Ok(())
     }
 
-    if let Err(err) = handle(&message, &tg, command).await {
+    if let Err(err) = handle(&message, &tg, command, &config).await {
         error!("Failed to handle message: {}", err);
         tg.send_message(message.chat.id, "Something went wrong, please try again")
             .await?;

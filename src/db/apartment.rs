@@ -1,12 +1,17 @@
+use std::sync::Arc;
+
 use super::{
     establish_connection, schema::apartments, schema::apartments::dsl::*, schema::watchlists,
 };
-use crate::models::{apartment::Apartment, apartment::InsertableApartment, watchlist::Watchlist};
+use crate::{
+    config::Config,
+    models::{apartment::Apartment, apartment::InsertableApartment, watchlist::Watchlist},
+};
 use anyhow::anyhow;
 use diesel::{prelude::*, result::Error};
 
-pub fn insert(apartment: InsertableApartment) {
-    let mut con = establish_connection();
+pub fn insert(config: &Arc<Config>, apartment: InsertableApartment) {
+    let mut con = establish_connection(config);
 
     match diesel::insert_into(apartments::table)
         .values(apartment)
@@ -17,8 +22,11 @@ pub fn insert(apartment: InsertableApartment) {
     }
 }
 
-pub fn get_all_for_watchlist(watchlist: i32) -> Result<Vec<Apartment>, Error> {
-    let mut con = establish_connection();
+pub fn get_all_for_watchlist(
+    config: &Arc<Config>,
+    watchlist: i32,
+) -> Result<Vec<Apartment>, Error> {
+    let mut con = establish_connection(config);
 
     let all_apartments: Result<Vec<Apartment>, Error> = apartments::table
         .filter(watchlist_id.eq(watchlist))
@@ -28,8 +36,11 @@ pub fn get_all_for_watchlist(watchlist: i32) -> Result<Vec<Apartment>, Error> {
     return all_apartments;
 }
 
-pub fn get_all_valid_for_watchlist(watchlist: i32) -> Result<Vec<Apartment>, anyhow::Error> {
-    let con = &mut establish_connection();
+pub fn get_all_valid_for_watchlist(
+    config: &Arc<Config>,
+    watchlist: i32,
+) -> Result<Vec<Apartment>, anyhow::Error> {
+    let con = &mut establish_connection(config);
 
     let watchlist_from_db = watchlists::table
         .filter(watchlists::id.eq(watchlist))

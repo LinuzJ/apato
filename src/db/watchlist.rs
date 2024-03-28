@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use crate::config::Config;
 use crate::models::watchlist::InsertableWatchlist;
 use crate::{models::watchlist::Watchlist, oikotie::oikotie::Location};
 use diesel::prelude::*;
@@ -6,8 +9,13 @@ use log::info;
 
 use super::{establish_connection, schema::watchlists, schema::watchlists::dsl::*};
 
-pub fn insert(location: Location, new_user_id: i32, new_goal_yield: Option<f64>) {
-    let mut connection = establish_connection();
+pub fn insert(
+    config: &Arc<Config>,
+    location: Location,
+    new_user_id: i32,
+    new_goal_yield: Option<f64>,
+) {
+    let mut connection = establish_connection(config);
 
     let watchlist: InsertableWatchlist = InsertableWatchlist {
         location_id: location.id,
@@ -30,8 +38,8 @@ pub fn insert(location: Location, new_user_id: i32, new_goal_yield: Option<f64>)
     }
 }
 
-pub fn delete(watchlist_id: i32) {
-    let mut connection = establish_connection();
+pub fn delete(config: &Arc<Config>, watchlist_id: i32) {
+    let mut connection = establish_connection(config);
 
     let deletion = diesel::delete(watchlists.filter(id.eq(watchlist_id))).execute(&mut connection);
 
@@ -41,8 +49,12 @@ pub fn delete(watchlist_id: i32) {
     }
 }
 
-pub async fn update_yield(target_id: i32, new_yield: f64) -> Result<(), anyhow::Error> {
-    let connection = &mut establish_connection();
+pub async fn update_yield(
+    config: &Arc<Config>,
+    target_id: i32,
+    new_yield: f64,
+) -> Result<(), anyhow::Error> {
+    let connection = &mut establish_connection(config);
 
     diesel::update(watchlists)
         .filter(id.eq(target_id))
@@ -52,8 +64,8 @@ pub async fn update_yield(target_id: i32, new_yield: f64) -> Result<(), anyhow::
     Ok(())
 }
 
-pub fn get_all() -> Vec<Watchlist> {
-    let connection = &mut establish_connection();
+pub fn get_all(config: &Arc<Config>) -> Vec<Watchlist> {
+    let connection = &mut establish_connection(config);
 
     let all_watchlists: Result<Vec<Watchlist>, diesel::result::Error> = watchlists::table
         .select(watchlists::table::all_columns())
@@ -71,8 +83,8 @@ pub fn get_all() -> Vec<Watchlist> {
     }
 }
 
-pub fn get_for_user(id_: i32) -> Vec<Watchlist> {
-    let connection = &mut establish_connection();
+pub fn get_for_user(config: &Arc<Config>, id_: i32) -> Vec<Watchlist> {
+    let connection = &mut establish_connection(config);
 
     let r: Vec<Watchlist> = watchlists
         .filter(user_id.eq(id_))

@@ -1,24 +1,30 @@
 use crate::{
+    config::Config,
     db::watchlist,
     models::apartment::InsertableApartment,
     oikotie::oikotie::{Location, Oikotie},
     producer::calculations::process_apartment_calculations,
 };
+use anyhow::Result;
 use log::info;
-use std::time::{Duration, Instant};
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 use tokio::time;
 
 pub struct PricingProducer {}
 
 impl PricingProducer {
-    pub async fn run() {
+    pub async fn run(config: Arc<Config>) -> Result<()> {
         let interval_in_seconds = 5 * 60;
         let mut interval = time::interval(Duration::from_secs(interval_in_seconds));
 
-        let watchlists = watchlist::get_all();
+        let watchlists = watchlist::get_all(&config);
         // TEMP Initialization of a watchlist
         if watchlists.len() == 0 {
             watchlist::insert(
+                &config,
                 Location {
                     id: 1645,
                     level: 4,
@@ -33,7 +39,7 @@ impl PricingProducer {
             info!("Starting PricingProducer run");
             let start = Instant::now();
 
-            let watchlists = watchlist::get_all();
+            let watchlists = watchlist::get_all(&config);
 
             for watchlist in watchlists {
                 info!(
@@ -41,12 +47,12 @@ impl PricingProducer {
                     watchlist.id
                 );
 
-                let mut oikotie_client: Oikotie = Oikotie::new().await;
+                let mut oikotie_client = Oikotie::new().await;
 
                 let apartments: Option<Vec<InsertableApartment>> =
                     oikotie_client.get_apartments(&watchlist).await;
 
-                process_apartment_calculations(apartments, oikotie_client).await;
+                process_apartment_calculations(&config, apartments, oikotie_client).await;
 
                 info!(
                     "Finished price calculations for watchlist_id: {:?}",

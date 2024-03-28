@@ -1,11 +1,14 @@
+use std::sync::Arc;
+
 use log::error;
 
 use crate::{
-    db, interest_rate::interest_rate_client, models::apartment::InsertableApartment,
-    oikotie::oikotie::Oikotie,
+    config::Config, db, interest_rate::interest_rate_client,
+    models::apartment::InsertableApartment, oikotie::oikotie::Oikotie,
 };
 
 pub async fn process_apartment_calculations(
+    config: &Arc<Config>,
     potential_apartments: Option<Vec<InsertableApartment>>,
     mut oikotie: Oikotie,
 ) {
@@ -54,7 +57,7 @@ pub async fn process_apartment_calculations(
                     estimated_yield: Some(apartment_yield),
                     watchlist_id: apartment.watchlist_id,
                 };
-                db::apartment::insert(insertable_apartment);
+                db::apartment::insert(&config, insertable_apartment);
             }
         }
         None => println!("No apartments added.."),

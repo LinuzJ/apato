@@ -4,6 +4,7 @@ extern crate chrono;
 extern crate diesel;
 
 pub mod bot;
+pub mod config;
 mod db;
 mod interest_rate;
 pub mod logger;
@@ -12,8 +13,3 @@ mod oikotie;
 pub mod producer;
 
 pub use producer::calculate_rental_yield;
-use producer::pricing_producer::PricingProducer;
-
-pub async fn spawn_apato() -> tokio::task::JoinHandle<()> {
-    tokio::task::spawn(async { PricingProducer::run().await })
-}

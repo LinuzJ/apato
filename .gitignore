@@ -9,3 +9,5 @@ notes.md
 output.log
 
 *.log
+
+config.toml
