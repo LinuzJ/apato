@@ -1,7 +1,7 @@
 use crate::{
     bot::bot_types,
     db::{self, watchlist},
-    models::watchlist::Watchlist,
+    models::{apartment::Apartment, watchlist::Watchlist},
     oikotie::oikotie::{Location, Oikotie},
 };
 use anyhow::Result;
@@ -220,57 +220,41 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                 }
             }
             Command::GetAll(watchlist_id) => {
-                let apartments = db::apartment::get_all_for_watchlist(watchlist_id);
-                let formatted: Vec<String> = apartments
-                    .iter()
-                    .enumerate()
-                    .map(|(index, apartment)| {
-                        format!(
-                            "Apartment: {} \n Location: {} \n Size: {} \n Price: {} \n Estimated Yield: {}",
-                            index,
-                            apartment
-                                .location_name
-                                .as_ref()
-                                .unwrap_or(&"N/A".to_string()),
-                            apartment.size.unwrap_or(0.0),
-                            apartment.price.unwrap_or(0),
-                            apartment.estimated_yield.unwrap_or(0.0)
+                let all_apartments_result = db::apartment::get_all_for_watchlist(watchlist_id);
+                let mut all_apartments: Option<Vec<Apartment>> = None;
+
+                match all_apartments_result {
+                    Ok(aps) => all_apartments = Some(aps),
+                    Err(e) => {
+                        tg.send_message(
+                            message.chat.id,
+                            format!("Error while fetching: {}", e.to_string()),
                         )
-                    })
-                    .collect();
-                for message_to_send in formatted {
-                    tg.send_message(message.chat.id, message_to_send).await?;
+                        .await?;
+                    }
+                };
+
+                if let Some(aps) = all_apartments {
+                    send_formatted_message_all(tg, message, aps).await?;
                 }
             }
             Command::GetAllValid(watchlist_id) => {
-                let apartments = db::apartment::get_all_valid_for_watchlist(watchlist_id);
-                let formatted: Vec<String> = apartments
-                    .iter()
-                    .enumerate()
-                    .map(|(index, apartment)| {
-                        format!(
-                            "Apartment: {} \n Location: {} \n Size: {} \n Price: {} \n Estimated Yield: {}",
-                            index,
-                            apartment
-                                .location_name
-                                .as_ref()
-                                .unwrap_or(&"N/A".to_string()),
-                            apartment.size.unwrap_or(0.0),
-                            apartment.price.unwrap_or(0),
-                            apartment.estimated_yield.unwrap_or(0.0)
+                let apartments_result = db::apartment::get_all_valid_for_watchlist(watchlist_id);
+                let mut apartments: Option<Vec<Apartment>> = None;
+
+                match apartments_result {
+                    Ok(aps) => apartments = Some(aps),
+                    Err(e) => {
+                        tg.send_message(
+                            message.chat.id,
+                            format!("Error while fetching: {}", e.to_string()),
                         )
-                    })
-                    .collect();
-                tg.send_message(
-                    message.chat.id,
-                    format!(
-                        "The following apartments are over the target yield for watchlist {}",
-                        watchlist_id
-                    ),
-                )
-                .await?;
-                for message_to_send in formatted {
-                    tg.send_message(message.chat.id, message_to_send).await?;
+                        .await?;
+                    }
+                };
+
+                if let Some(aps) = apartments {
+                    send_formatted_message_all_valid(tg, message, aps, watchlist_id).await?;
                 }
             }
         };
@@ -316,6 +300,71 @@ fn parse_string_to_int_message(input: String) -> Result<(i32,), ParseError> {
     println!("{:?}", input);
     let watchlist_id = input.parse::<i32>().unwrap();
     Ok((watchlist_id,))
+}
+
+async fn send_formatted_message_all_valid(
+    tg: &Bot,
+    message: &Message,
+    apartments: Vec<Apartment>,
+    watchlist_id: i32,
+) -> Result<()> {
+    let formatted: Vec<String> = apartments
+        .iter()
+        .enumerate()
+        .map(|(index, apartment)| {
+            format!(
+                "{}: \n Location: {} \n Size: {} \n Price: {} \n Estimated Yield: {}",
+                index,
+                apartment
+                    .location_name
+                    .as_ref()
+                    .unwrap_or(&"N/A".to_string()),
+                apartment.size.unwrap_or(0.0),
+                apartment.price.unwrap_or(0),
+                apartment.estimated_yield.unwrap_or(0.0)
+            )
+        })
+        .collect();
+    tg.send_message(
+        message.chat.id,
+        format!(
+            "The following apartments are over the target yield for watchlist {}",
+            watchlist_id
+        ),
+    )
+    .await?;
+    for message_to_send in formatted {
+        tg.send_message(message.chat.id, message_to_send).await?;
+    }
+    Ok(())
+}
+
+async fn send_formatted_message_all(
+    tg: &Bot,
+    message: &Message,
+    apartments: Vec<Apartment>,
+) -> Result<()> {
+    let formatted: Vec<String> = apartments
+        .iter()
+        .enumerate()
+        .map(|(index, apartment)| {
+            format!(
+                "{}: \n Location: {} \n Size: {} \n Price: {} \n Estimated Yield: {}",
+                index,
+                apartment
+                    .location_name
+                    .as_ref()
+                    .unwrap_or(&"N/A".to_string()),
+                apartment.size.unwrap_or(0.0),
+                apartment.price.unwrap_or(0),
+                apartment.estimated_yield.unwrap_or(0.0)
+            )
+        })
+        .collect();
+    for message_to_send in formatted {
+        tg.send_message(message.chat.id, message_to_send).await?;
+    }
+    Ok(())
 }
 // #[cfg(test)]
 // mod tests {

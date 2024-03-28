@@ -10,6 +10,7 @@ use crate::models::{
     watchlist::{self, Watchlist},
 };
 use diesel::{prelude::*, result::Error};
+use log::error;
 use tokio::sync::watch;
 
 pub fn insert(apartment: InsertableApartment) {
@@ -19,61 +20,48 @@ pub fn insert(apartment: InsertableApartment) {
         .values(apartment)
         .execute(&mut con)
     {
-        Ok(n) => println!("Inserted {:?} rows into apartmens table", n),
+        Ok(n) => println!("Inserted {:?} rows into apartments table", n),
         Err(e) => println!("Error: {:?}", e),
     }
 }
 
-pub fn get_all_for_watchlist(watchlist: i32) -> Vec<Apartment> {
+pub fn get_all_for_watchlist(watchlist: i32) -> Result<Vec<Apartment>, Error> {
     let mut con = establish_connection();
 
     let all_apartments: Result<Vec<Apartment>, Error> = apartments::table
         .filter(watchlist_id.eq(watchlist))
         .select(apartments::table::all_columns())
         .load(&mut con);
-    match all_apartments {
-        Ok(n) => {
-            println!(
-                "Fetched {:?} apartments for watchlist {:?}",
-                n.len(),
-                watchlist
-            );
-            n
-        }
-        Err(e) => {
-            println!("Error: {:?}", e);
-            Vec::new()
-        }
-    }
+
+    return all_apartments;
 }
 
-pub fn get_all_valid_for_watchlist(watchlist: i32) -> Vec<Apartment> {
+pub fn get_all_valid_for_watchlist(watchlist: i32) -> Result<Vec<Apartment>, Error> {
     let con = &mut establish_connection();
 
     let watchlist_from_db = watchlists::table
         .filter(watchlists::id.eq(watchlist))
         .select(Watchlist::as_select())
-        .get_result(con);
-    println!("ABCABC {:?}", watchlist_from_db);
+        .first(con)
+        .optional();
+
+    let target_watchlist_id = match watchlist_from_db {
+        Ok(Some(w)) => w.id,
+        Ok(None) => 0,
+        Err(_) => {
+            error!("Error while trying to fetch watchlist");
+            0
+        }
+    };
+
     // let valid_apartments: Result<Vec<Apartment>, Error> =
     //     Apartment::belonging_to(&watchlist_from_db)
     //         .select(Apartment::as_select())
     //         .load(con)?;
+    let valid_apartments: Result<Vec<Apartment>, Error> = apartments::table
+        .filter(apartments::watchlist_id.eq(target_watchlist_id))
+        .select(Apartment::as_select())
+        .load(con);
 
-    // match valid_apartments {
-    //     Ok(n) => {
-    //         println!(
-    //             "Fetched {:?} apartments for watchlist {:?}",
-    //             n.len(),
-    //             watchlist
-    //         );
-    //         n
-    //     }
-    //     Err(e) => {
-    //         println!("Error: {:?}", e);
-    //         Vec::new()
-    //     }
-    // }
-    let res: Vec<Apartment> = Vec::new();
-    res
+    return valid_apartments;
 }
