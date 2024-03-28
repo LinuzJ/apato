@@ -1,9 +1,9 @@
 use crate::{
-    db::{self, watchlist},
+    db,
     models::{apartment::Apartment, watchlist::Watchlist},
     oikotie::oikotie::{Location, Oikotie},
 };
-use anyhow::{Error, Result};
+use anyhow::Result;
 use dotenvy::dotenv;
 use lazy_static::lazy_static;
 use log::error;
@@ -14,14 +14,12 @@ use teloxide::{
     dptree,
     prelude::{Dispatcher, LoggingErrorHandler},
     requests::Requester,
-    types::{Message, Update, User},
+    types::{Message, Update},
     utils::command::{BotCommands, ParseError},
     Bot,
 };
 
 use super::bot_types::SubscriptionArgs;
-
-// Inspiration: https://github.com/raine/tgreddit
 
 #[derive(BotCommands, Clone)]
 #[command(
@@ -400,62 +398,46 @@ async fn send_formatted_message_all(
     }
     Ok(())
 }
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-//     #[test]
-//     fn test_parse_subscribe_message_only_subreddit() {
-//         let args = parse_subscribe_message("AnimalsBeingJerks".to_string()).unwrap();
-//         assert_eq!(
-//             args.0,
-//             SubscriptionArgs {
-//                 subreddit: "AnimalsBeingJerks".to_string(),
-//                 limit: None,
-//                 time: None,
-//                 filter: None,
-//             },
-//         )
-//     }
+    #[test]
+    async fn test_parse_subscribe_message_only_watchlist() {
+        let args = parse_subscribe_message("testlocation".to_string()).unwrap();
+        assert_eq!(
+            args.0,
+            SubscriptionArgs {
+                location: "testlocation".to_string(),
+                size: None,
+                yield_goal: None
+            },
+        )
+    }
 
-//     #[test]
-//     fn test_parse_subscribe_message_strips_prefix() {
-//         let args = parse_subscribe_message("r/AnimalsBeingJerks".to_string()).unwrap();
-//         assert_eq!(
-//             args.0,
-//             SubscriptionArgs {
-//                 subreddit: "AnimalsBeingJerks".to_string(),
-//                 limit: None,
-//                 time: None,
-//                 filter: None,
-//             },
-//         );
+    #[test]
+    async fn test_parse_subscribe_message_without_declarations() {
+        let args = parse_subscribe_message("testlocation 60 10".to_string()).unwrap();
+        assert_eq!(
+            args.0,
+            SubscriptionArgs {
+                location: "testlocation".to_string(),
+                size: None,
+                yield_goal: None
+            },
+        );
+    }
 
-//         let args = parse_subscribe_message("/r/AnimalsBeingJerks".to_string()).unwrap();
-//         assert_eq!(
-//             args.0,
-//             SubscriptionArgs {
-//                 subreddit: "AnimalsBeingJerks".to_string(),
-//                 limit: None,
-//                 time: None,
-//                 filter: None,
-//             },
-//         )
-//     }
-
-//     #[test]
-//     fn test_parse_subscribe_message() {
-//         let args =
-//             parse_subscribe_message("AnimalsBeingJerks limit=5 time=week filter=video".to_string())
-//                 .unwrap();
-//         assert_eq!(
-//             args.0,
-//             SubscriptionArgs {
-//                 subreddit: "AnimalsBeingJerks".to_string(),
-//                 limit: Some(5),
-//                 time: Some(TopPostsTimePeriod::Week),
-//                 filter: Some(PostType::Video),
-//             },
-//         )
-//     }
-// }
+    #[test]
+    async fn test_parse_subscribe_message_correct_format() {
+        let args = parse_subscribe_message("testlocation yield=10 size=50".to_string()).unwrap();
+        assert_eq!(
+            args.0,
+            SubscriptionArgs {
+                location: "testlocation".to_string(),
+                size: Some(50),
+                yield_goal: Some(10)
+            },
+        )
+    }
+}
