@@ -29,10 +29,10 @@ pub async fn process_apartment_calculations(
                     Err(e) => error!("{}", e),
                 }
 
-                let interest_rate = interest_rate_client::get_interest_rate().await;
+                let interest_rate = interest_rate_client::get_interest_rate(&config).await;
 
                 let apartment_yield = match interest_rate {
-                    Ok(interest_rate) => calculate_rental_yield(
+                    Ok(interest_rate) => calculate_irr(
                         apartment.price.clone().unwrap(),
                         apartment.rent.unwrap(),
                         apartment.additional_costs.unwrap(),
@@ -64,14 +64,10 @@ pub async fn process_apartment_calculations(
     }
 }
 
-pub fn calculate_rental_yield(
-    price: i32,
-    rent: i32,
-    additional_cost: i32,
-    interest_rate: f64,
-) -> f64 {
-    // Calculate annual mortgage payment using the loan term and interest rate
+pub fn calculate_irr(price: i32, rent: i32, additional_cost: i32, interest_rate: f64) -> f64 {
+    // MEGA TODO: FIX THIS
 
+    // Calculate annual mortgage payment using the loan term and interest rate
     let annual_interest_rate = interest_rate / 100.0;
     let loan_term_months = 25 * 12;
     let monthly_interest_rate = annual_interest_rate / 12.0;
@@ -94,4 +90,23 @@ pub fn calculate_rental_yield(
     let yearly_yield = rental_yield * 12.0;
 
     yearly_yield * 100.0 // Convert to percentage
+}
+
+#[cfg(test)]
+mod yield_calculations {
+    use super::*;
+
+    #[test]
+    async fn calculate_basic_yield() {
+        let yield_ = calculate_irr(100000, 800, 200, 2.00);
+        let yield_rounded = (yield_ * 10000.0).round() / 10000.0;
+        assert_eq!(yield_rounded, 0.2075)
+    }
+
+    #[test]
+    async fn float_test() {
+        let yield_: f64 = 0.20748;
+        let yield_rounded = (yield_ * 10000.0).round() / 10000.0;
+        assert_eq!(yield_rounded, 0.2075)
+    }
 }

@@ -12,4 +12,4 @@ pub mod models;
 mod oikotie;
 pub mod producer;
 
-pub use producer::calculate_rental_yield;
+pub use producer::calculate_irr;
