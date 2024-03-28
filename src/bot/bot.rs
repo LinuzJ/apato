@@ -185,9 +185,8 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                 // Check if watchlist for this place already exists for this user
                 let existing: Vec<Watchlist> = db::watchlist::get_for_user(user_id as i32)
                     .iter()
-                    .enumerate()
-                    .filter(|(index, watchlist)| watchlist.id == watchlist_id)
-                    .map(|(_, &ref item)| item.to_owned())
+                    .filter(|watchlist| watchlist.id == watchlist_id)
+                    .map(|&ref item| item.to_owned())
                     .collect();
 
                 if existing.len() == 0 {
