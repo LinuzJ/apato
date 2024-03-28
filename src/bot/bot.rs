@@ -204,8 +204,12 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                     .map(|watchlist| watchlist.location_name.clone())
                     .collect();
 
-                let joined_formatted = formatted.join("\n");
-                tg.send_message(message.chat.id, joined_formatted).await?;
+                if formatted.len() == 0 {
+                    tg.send_message(message.chat.id, "No subs").await?;
+                } else {
+                    let joined_formatted = formatted.join("\n");
+                    tg.send_message(message.chat.id, joined_formatted).await?;
+                }
             }
             Command::GetAll(watchlist_id) => {
                 let apartments = db::apartment::get_all_for_watchlist(watchlist_id);
@@ -230,7 +234,36 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                     tg.send_message(message.chat.id, message_to_send).await?;
                 }
             }
-            Command::GetAllValid(watchlist_id) => todo!(),
+            Command::GetAllValid(watchlist_id) => {
+                let apartments = db::apartment::get_all_valid_for_watchlist(watchlist_id);
+                let formatted: Vec<String> = apartments
+                    .iter()
+                    .enumerate()
+                    .map(|(index, apartment)| {
+                        format!(
+                            "Apartment: {} \n Location: {} \n Size: {} \n Price: {} \n Estimated Yield: {}",
+                            index,
+                            apartment
+                                .location_name
+                                .as_ref()
+                                .unwrap_or(&"N/A".to_string()),
+                            apartment.size.unwrap_or(0.0),
+                            apartment.price.unwrap_or(0),
+                            apartment.estimated_yield.unwrap_or(0.0)
+                        )
+                    })
+                    .collect();
+                tg.send_message(
+                    message.chat.id,
+                    format!(
+                        "The following apartments are over the target yield for watchlist {}",
+                        watchlist_id
+                    ),
+                );
+                for message_to_send in formatted {
+                    tg.send_message(message.chat.id, message_to_send).await?;
+                }
+            }
         };
 
         let user = message.from();

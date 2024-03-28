@@ -1,3 +1,4 @@
+use crate::models::watchlist::Watchlist;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
 
@@ -17,7 +18,8 @@ pub struct InsertableApartment {
     pub watchlist_id: i32,
 }
 
-#[derive(Debug, Queryable, Selectable, Clone)]
+#[derive(Debug, Clone, PartialEq, Associations, Identifiable, Queryable, Selectable)]
+#[diesel(belongs_to(Watchlist, foreign_key = id))]
 #[diesel(table_name = crate::db::schema::apartments)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Apartment {

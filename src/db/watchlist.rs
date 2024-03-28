@@ -61,12 +61,12 @@ pub fn get_all() -> Vec<Watchlist> {
 }
 
 pub fn get_for_user(id_: i32) -> Vec<Watchlist> {
-    let mut connection = establish_connection();
+    let mut connection = &mut establish_connection();
 
     let r: Vec<Watchlist> = watchlists
         .filter(user_id.eq(id_))
         .select(Watchlist::as_select())
-        .load(&mut connection)
+        .load(connection)
         .expect("Error loading watchlists for user}");
 
     r

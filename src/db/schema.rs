@@ -34,7 +34,4 @@ diesel::table! {
 
 diesel::joinable!(apartments -> watchlists (watchlist_id));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    apartments,
-    watchlists,
-);
+diesel::allow_tables_to_appear_in_same_query!(apartments, watchlists);
