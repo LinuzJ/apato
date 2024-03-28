@@ -73,7 +73,7 @@ impl ApatoBot {
 
         let handler = Update::filter_message().branch(
             // TODO Fix this...
-            dptree::filter(|msg: Message| msg.from().map(|user| true).unwrap_or_default())
+            dptree::entry()
                 .filter_command::<Command>()
                 .endpoint(handle_command),
         );

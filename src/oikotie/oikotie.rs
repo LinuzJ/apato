@@ -23,10 +23,11 @@ pub struct Location {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct LocationApiCard {
     name: String,
-    cardId: u32,
-    cardType: u32,
+    card_id: u32,
+    card_type: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -143,7 +144,7 @@ impl Oikotie {
                 ));
             }
 
-            return Ok(locations[0].card.cardId);
+            return Ok(locations[0].card.card_id);
         } else {
             return Err(anyhow!(
                 "Did not find any valid location for '{}', please try again!",
@@ -273,7 +274,7 @@ async fn fetch_location_id(
     let client: reqwest::Client = reqwest::Client::new();
 
     // Create request with needed token headers
-    let mut oikotie_cards_api_url = String::from("https://asunnot.oikotie.fi/api/5.0/location/");
+    let oikotie_cards_api_url = String::from("https://asunnot.oikotie.fi/api/5.0/location/");
     let params: Vec<(&str, &str)> = vec![("query", location_string), ("card_type", "4")];
 
     let mut headers: HeaderMap = HeaderMap::new();

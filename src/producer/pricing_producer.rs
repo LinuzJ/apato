@@ -1,6 +1,6 @@
 use crate::{
     db::watchlist,
-    models::apartment::{Apartment, InsertableApartment},
+    models::apartment::InsertableApartment,
     oikotie::oikotie::{Location, Oikotie},
     producer::calculations::process_apartment_calculations,
 };
