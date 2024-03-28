@@ -46,7 +46,7 @@ pub enum Command {
     Unsub(i32),
 
     #[command(description = "List current active watchlist subscriptions")]
-    ListSubs(i32),
+    ListSubs,
 
     #[command(description = "Get all apartments/houses in watchlist",
         parse_with = parse_string_to_int_message
@@ -187,21 +187,29 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                         .await?;
                 }
             }
-            Command::ListSubs(_) => {
+            Command::ListSubs => {
                 let user = message.from();
                 let user_id = match user {
                     Some(u) => u.id.0,
                     None => {
-                        error!("asd");
-                        0
+                        error!("Failed to parse user-id from telegram user");
+                        0 // TODO use temp default id
                     }
                 };
-
                 // Check if watchlist for this place already exists for this user
                 let existing: Vec<Watchlist> = db::watchlist::get_for_user(user_id as i32);
                 let formatted: Vec<String> = existing
                     .iter()
-                    .map(|watchlist| watchlist.location_name.clone())
+                    .enumerate()
+                    .map(|(index, watchlist)| {
+                        format!(
+                            "{}: Id: {};    Location: {};   Target Yield: {}",
+                            index + 1,
+                            watchlist.id.clone(),
+                            watchlist.location_name.clone(),
+                            watchlist.goal_yield.clone().unwrap()
+                        )
+                    })
                     .collect();
 
                 if formatted.len() == 0 {
@@ -259,37 +267,19 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                         "The following apartments are over the target yield for watchlist {}",
                         watchlist_id
                     ),
-                );
+                )
+                .await?;
                 for message_to_send in formatted {
                     tg.send_message(message.chat.id, message_to_send).await?;
                 }
             }
         };
-
-        let user = message.from();
-        let user_id = match user {
-            Some(u) => u.id.0,
-            None => {
-                error!("asd");
-                0
-            }
-        };
-
-        // Check if watchlist for this place already exists for this user
-        let existing: Vec<Watchlist> = db::watchlist::get_for_user(user_id as i32);
-        let formatted: Vec<String> = existing
-            .iter()
-            .map(|watchlist| watchlist.location_name.clone())
-            .collect();
-
-        let joined_formatted = formatted.join("\n");
-        tg.send_message(message.chat.id, joined_formatted).await?;
         Ok(())
     }
 
     if let Err(err) = handle(&message, &tg, command).await {
-        error!("failed to handle message: {}", err);
-        tg.send_message(message.chat.id, "Something went wrong")
+        error!("Failed to handle message: {}", err);
+        tg.send_message(message.chat.id, "Something went wrong, please try again")
             .await?;
     }
 
