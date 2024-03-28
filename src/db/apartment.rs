@@ -1,17 +1,9 @@
 use super::{
-    establish_connection,
-    schema::apartments,
-    schema::watchlists,
-    schema::{self, apartments::dsl::*, watchlists::dsl::*},
+    establish_connection, schema::apartments, schema::apartments::dsl::*, schema::watchlists,
 };
-use crate::models::{
-    apartment::Apartment,
-    apartment::InsertableApartment,
-    watchlist::{self, Watchlist},
-};
+use crate::models::{apartment::Apartment, apartment::InsertableApartment, watchlist::Watchlist};
 use diesel::{prelude::*, result::Error};
 use log::error;
-use tokio::sync::watch;
 
 pub fn insert(apartment: InsertableApartment) {
     let mut con = establish_connection();
@@ -44,7 +36,7 @@ pub fn get_all_valid_for_watchlist(watchlist: i32) -> Result<Vec<Apartment>, Err
         .select(Watchlist::as_select())
         .first(con)
         .optional();
-
+    // TODO -> Make this one join query. diesel fucked the join fsr
     let target_watchlist_id = match watchlist_from_db {
         Ok(Some(w)) => w.id,
         Ok(None) => 0,

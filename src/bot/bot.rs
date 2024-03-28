@@ -1,10 +1,9 @@
 use crate::{
-    bot::bot_types,
     db::{self, watchlist},
     models::{apartment::Apartment, watchlist::Watchlist},
     oikotie::oikotie::{Location, Oikotie},
 };
-use anyhow::Result;
+use anyhow::{Error, Result};
 use dotenvy::dotenv;
 use lazy_static::lazy_static;
 use log::error;
@@ -34,7 +33,7 @@ pub enum Command {
     Help,
 
     #[command(
-        description = "Subscribe to a location watchlist",
+        description = "Subscribe to a location watchlist. Provide the args in the following format: \n /sub {location name} {size (m^2)} {target yield}. \n Example: \n '/sub ullanlinna 60 10",
         parse_with = parse_subscribe_message
     )]
     Sub(SubscriptionArgs),
@@ -46,7 +45,7 @@ pub enum Command {
     Unsub(i32),
 
     #[command(description = "List current active watchlist subscriptions")]
-    ListSubs,
+    ListWatchlists,
 
     #[command(description = "Get all apartments/houses in watchlist",
         parse_with = parse_string_to_int_message
@@ -122,11 +121,16 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                 let user = message.from();
                 let user_id = match user {
                     Some(u) => u.id.0,
-                    None => {
-                        error!("asd");
-                        0
-                    }
+                    None => 0, // Default to user id 0
                 };
+
+                if args.location == "" && args.size == None && args.yield_goal == None {
+                    tg.send_message(
+                        message.chat.id,
+                        "Please provide the arguments needed. Check /help for guidance.",
+                    )
+                    .await?;
+                }
 
                 // Check if watchlist for this place already exists for this user
                 let existing = db::watchlist::get_for_user(user_id as i32);
@@ -139,25 +143,33 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                     )
                     .await?;
                 } else {
-                    // Get location id
                     let mut oikotie_client: Oikotie = Oikotie::new().await;
-                    let location_id = oikotie_client
-                        .get_location_id(&args.location)
-                        .await
-                        .unwrap_or(1645);
-                    let location = Location {
-                        id: location_id as i32,
-                        level: 4,
-                        name: args.location,
-                    };
+                    let location_id_response = oikotie_client.get_location_id(&args.location).await;
+                    let mut location: Option<Location> = None;
 
-                    db::watchlist::insert(
-                        location,
-                        user_id as i32,
-                        Some(args.yield_goal.unwrap_or(0) as f64),
-                    );
-                    tg.send_message(message.chat.id, "Added to your watchlist!")
-                        .await?;
+                    match location_id_response {
+                        Ok(location_id) => {
+                            location = Some(Location {
+                                id: location_id as i32,
+                                level: 4,
+                                name: args.location,
+                            })
+                        }
+                        Err(e) => {
+                            let err_str = e.to_string();
+                            tg.send_message(message.chat.id, err_str).await?;
+                        }
+                    }
+
+                    if let Some(loc) = location {
+                        db::watchlist::insert(
+                            loc,
+                            user_id as i32,
+                            Some(args.yield_goal.unwrap_or(0) as f64),
+                        );
+                        tg.send_message(message.chat.id, "Added to your watchlist!")
+                            .await?;
+                    }
                 }
             }
             Command::Unsub(watchlist_id) => {
@@ -187,7 +199,7 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
                         .await?;
                 }
             }
-            Command::ListSubs => {
+            Command::ListWatchlists => {
                 let user = message.from();
                 let user_id = match user {
                     Some(u) => u.id.0,
@@ -273,6 +285,7 @@ pub async fn handle_command(message: Message, tg: Arc<Bot>, command: Command) ->
 fn parse_subscribe_message(input: String) -> Result<(SubscriptionArgs,), ParseError> {
     lazy_static! {
         static ref LOCATION_STRING_REGEX: Regex = Regex::new(r"^[^\s]+").unwrap();
+        static ref SIZE_REGEX: Regex = Regex::new(r"\bsize=(\d+)\b").unwrap();
         static ref YIELD_REGEX: Regex = Regex::new(r"\byield=(\d+)\b").unwrap();
     }
 
@@ -282,6 +295,11 @@ fn parse_subscribe_message(input: String) -> Result<(SubscriptionArgs,), ParseEr
         .as_str()
         .to_string();
 
+    let size: Option<u32> = SIZE_REGEX
+        .captures(&input)
+        .and_then(|caps| caps.get(1))
+        .and_then(|m| m.as_str().parse().ok());
+
     let yield_goal: Option<u32> = YIELD_REGEX
         .captures(&input)
         .and_then(|caps| caps.get(1))
@@ -289,7 +307,7 @@ fn parse_subscribe_message(input: String) -> Result<(SubscriptionArgs,), ParseEr
 
     let args = SubscriptionArgs {
         location,
-        size: Some(1),
+        size,
         yield_goal,
     };
 
@@ -297,7 +315,6 @@ fn parse_subscribe_message(input: String) -> Result<(SubscriptionArgs,), ParseEr
 }
 
 fn parse_string_to_int_message(input: String) -> Result<(i32,), ParseError> {
-    println!("{:?}", input);
     let watchlist_id = input.parse::<i32>().unwrap();
     Ok((watchlist_id,))
 }

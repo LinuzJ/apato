@@ -3,6 +3,7 @@ use crate::models::watchlist::Watchlist;
 use crate::oikotie::helpers;
 use crate::oikotie::tokens;
 
+use anyhow::anyhow;
 use anyhow::{Error, Result};
 use helpers::create_location_string;
 use log::error;
@@ -118,20 +119,37 @@ impl Oikotie {
     /*
        Use Oikotie's search API to find location ID based on text query
     */
-    pub async fn get_location_id(&mut self, location_string: &str) -> Option<u32> {
+    pub async fn get_location_id(&mut self, location_string: &str) -> Result<u32> {
         if self.tokens.is_none() {
             self.tokens = get_tokens().await;
         }
 
-        let location_response: Result<Vec<LocationApiResponseItem>, reqwest::Error> =
+        let response: Result<Vec<LocationApiResponseItem>, reqwest::Error> =
             fetch_location_id(&self.tokens.as_ref().unwrap(), location_string).await;
 
-        let locations = match location_response {
-            Ok(l) => l,
-            Err(_e) => return None,
+        let potential_locations = match response {
+            Ok(l) => Some(l),
+            Err(e) => {
+                error!("Error while fetching location id from Oikotie: {}", e);
+                return Err(e.into());
+            }
         };
 
-        Some(locations[0].card.cardId)
+        if let Some(locations) = potential_locations {
+            if locations.len() == 0 {
+                return Err(anyhow!(
+                    "Did not find any valid location for '{}', please try again!",
+                    location_string
+                ));
+            }
+
+            return Ok(locations[0].card.cardId);
+        } else {
+            return Err(anyhow!(
+                "Did not find any valid location for '{}', please try again!",
+                location_string
+            ));
+        }
     }
 
     /*
