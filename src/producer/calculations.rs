@@ -92,13 +92,37 @@ pub fn calculate_irr(price: i32, rent: i32, additional_cost: i32, interest_rate:
     yearly_yield * 100.0 // Convert to percentage
 }
 
+pub fn calculate_irr_wip(
+    config: Arc<Config>,
+    price: i32,
+    rent: i32,
+    additional_cost: i32,
+    interest_rate: f64,
+) -> f64 {
+    let down_payment_amount = (config.down_payment_percentage as f64 / 100.0) as i32 * price;
+    let year_0_inv = -down_payment_amount;
+    let year_1_income = rent * 12;
+
+    return 1.0;
+}
+
 #[cfg(test)]
 mod yield_calculations {
+    use crate::config;
+
     use super::*;
 
     #[test]
     async fn calculate_basic_yield() {
         let yield_ = calculate_irr(100000, 800, 200, 2.00);
+        let yield_rounded = (yield_ * 10000.0).round() / 10000.0;
+        assert_eq!(yield_rounded, 0.2075)
+    }
+
+    #[test]
+    async fn calculate_basic_yield_wip() {
+        let config = Arc::new(config::create_test_config());
+        let yield_ = calculate_irr_wip(config, 100000, 800, 200, 2.00);
         let yield_rounded = (yield_ * 10000.0).round() / 10000.0;
         assert_eq!(yield_rounded, 0.2075)
     }
