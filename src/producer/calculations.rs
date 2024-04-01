@@ -39,6 +39,7 @@ pub async fn process_apartment_calculations(
                         interest_rate,
                     ),
                     Err(e) => {
+                        // TODO better handling here
                         error!("Error while calculating rental yield: {}", e);
                         0.0
                     }
@@ -65,8 +66,6 @@ pub async fn process_apartment_calculations(
 }
 
 pub fn calculate_irr(price: i32, rent: i32, additional_cost: i32, interest_rate: f64) -> f64 {
-    // MEGA TODO: FIX THIS
-
     // Calculate annual mortgage payment using the loan term and interest rate
     let annual_interest_rate = interest_rate / 100.0;
     let loan_term_months = 25 * 12;
@@ -92,18 +91,66 @@ pub fn calculate_irr(price: i32, rent: i32, additional_cost: i32, interest_rate:
     yearly_yield * 100.0 // Convert to percentage
 }
 
+// TODO
 pub fn calculate_irr_wip(
     config: Arc<Config>,
-    price: i32,
-    rent: i32,
-    additional_cost: i32,
+    price: f64,
+    rent: f64,
+    additional_cost: f64,
     interest_rate: f64,
 ) -> f64 {
-    let down_payment_amount = (config.down_payment_percentage as f64 / 100.0) as i32 * price;
-    let year_0_inv = -down_payment_amount;
-    let year_1_income = rent * 12;
+    let down_payment_amount: f64 = (config.down_payment_percentage as f64 / 100.0) * price as f64;
+    let loan: f64 = price as f64 + config.avg_renovation_costs as f64 - down_payment_amount;
 
-    return 1.0;
+    let mut yearly_cash_flows: Vec<f64> = vec![];
+    yearly_cash_flows.push(-down_payment_amount);
+
+    // Calculate cash flows for each year
+    for year in 1..(config.loan_duration_years + 1) {
+        let income = rent
+            * (1.0 + (config.avg_estimated_rent_increase_per_year as f64) / 100.0)
+                .powf(year as f64);
+        let vacancy = -rent * (config.avg_vacant_month_per_year as f64 / 12.0);
+        let depreciation =
+            -(config.avg_renovation_costs as f64 / config.loan_duration_years as f64);
+
+        let ebit = income + vacancy + (-additional_cost) + depreciation;
+
+        let taxes = -ebit * (config.tax as f64 / 100.0);
+        let depreciation_add = depreciation;
+        let interest = -loan * (interest_rate / 100.0);
+        let loan_principal_repayment = -(config.loan_duration_years as f64 * 12.0 - year as f64)
+            / (config.loan_duration_years as f64 * 12.0)
+            * loan;
+        let fcf = ebit + taxes + depreciation_add + interest + loan_principal_repayment;
+        yearly_cash_flows.push(fcf);
+    }
+
+    let irr: f64 = _irr(yearly_cash_flows).unwrap_or_default();
+
+    return irr;
+}
+
+// TODO
+// Calculates the amount of interest that should be payed at a specific period.
+fn _interest_payment_for_period(
+    interest_rate: f64,
+    period: f64,
+    total_periods: f64,
+    present_value: f64,
+) -> f64 {
+    return -present_value * interest_rate * ((1.0 + interest_rate).powf(period - 1.0))
+        / (((1.0 + interest_rate).powf(total_periods)) - 1.0);
+}
+
+// Calculates the amount of interest that should be payed at a specific period.
+fn _principal_payment_for_period(
+    interest_rate: f64,
+    period: f64,
+    total_periods: f64,
+    present_value: f64,
+) -> f64 {
+    return -present_value * interest_rate / (((1.0 + interest_rate).powf(total_periods)) - 1.0);
 }
 
 fn _irr(cash_flow: Vec<f64>) -> Option<f64> {
@@ -346,6 +393,7 @@ mod matrix_tests {
 
 #[cfg(test)]
 mod yield_calculations {
+
     use crate::config;
 
     use super::*;
@@ -360,7 +408,7 @@ mod yield_calculations {
     #[test]
     async fn calculate_basic_yield_wip() {
         let config = Arc::new(config::create_test_config());
-        let yield_ = calculate_irr_wip(config, 100000, 800, 200, 2.00);
+        let yield_ = calculate_irr_wip(config, 100000 as f64, 800 as f64, 200 as f64, 2.00);
         let yield_rounded = (yield_ * 10000.0).round() / 10000.0;
         assert_eq!(yield_rounded, 0.2075)
     }
@@ -391,6 +439,59 @@ mod yield_calculations {
         let irr_raw = _irr(cash_flow).unwrap();
         let irr = (irr_raw * 1000000.0).round() / 1000000.0;
         assert_eq!(irr, 0.207468)
+    }
+
+    #[test]
+    async fn test_interest_payment_period_1() {
+        let interest_rate = 0.02;
+        let period = 1.0;
+        let total_periods = 25.0;
+        let present_value = 84000.0;
+
+        let result =
+            _interest_payment_for_period(interest_rate, period, total_periods, present_value);
+        let result_rounded = (result * 10000.0).round() / 10000.0;
+        assert_eq!(result_rounded, -1680.00)
+    }
+
+    // TODO
+    #[test]
+    async fn test_interest_payment_period_2() {
+        let interest_rate = 0.02;
+        let period = 1.0;
+        let total_periods = 25.0;
+        let present_value = 84000.0;
+
+        let result =
+            _interest_payment_for_period(interest_rate, period, total_periods, present_value);
+        let result_rounded = (result * 10000.0).round() / 10000.0;
+        assert_eq!(result_rounded, -1680.00)
+    }
+
+    #[test]
+    async fn test_principal_payment_period_1() {
+        let interest_rate = 0.02;
+        let period = 1.0;
+        let total_periods = 25.0;
+        let present_value = 84000.0;
+
+        let result =
+            _principal_payment_for_period(interest_rate, period, total_periods, present_value);
+        let result_rounded = (result * 10000.0).round() / 10000.0;
+        assert_eq!(result_rounded, -1680.00)
+    }
+
+    #[test]
+    async fn test_principal_payment_period_2() {
+        let interest_rate = 0.02;
+        let period = 1.0;
+        let total_periods = 25.0;
+        let present_value = 84000.0;
+
+        let result =
+            _principal_payment_for_period(interest_rate, period, total_periods, present_value);
+        let result_rounded = (result * 10000.0).round() / 10000.0;
+        assert_eq!(result_rounded, -1680.00)
     }
 
     #[test]

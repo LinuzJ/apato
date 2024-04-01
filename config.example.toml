@@ -5,3 +5,4 @@ down_payment_percentage = 20
 avg_vacant_month_per_year = 1
 avg_estimated_rent_increase_per_year = 1
 avg_renovation_costs = 5000
+tax = 30

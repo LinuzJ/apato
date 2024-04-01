@@ -14,6 +14,7 @@ pub struct Config {
     pub avg_vacant_month_per_year: u32,
     pub avg_estimated_rent_increase_per_year: u32,
     pub avg_renovation_costs: u32,
+    pub tax: u32,
 }
 
 pub fn create_test_config() -> Config {
@@ -25,6 +26,7 @@ pub fn create_test_config() -> Config {
         avg_vacant_month_per_year: 1,
         avg_estimated_rent_increase_per_year: 1,
         avg_renovation_costs: 5000,
+        tax: 30,
     }
 }
 
