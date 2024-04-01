@@ -1,9 +1,9 @@
-use std::{fs::File, sync::Arc};
+use std::sync::Arc;
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use crate::config::{self, Config};
+use crate::config::Config;
 
 #[derive(Debug, Deserialize)]
 struct ApiResponse {

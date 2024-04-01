@@ -1,6 +1,6 @@
 use log::error;
-use nalgebra::{Complex, DMatrix, SVD};
-use std::{result, sync::Arc, vec};
+use nalgebra::DMatrix;
+use std::{sync::Arc, vec};
 
 use crate::{
     config::Config, db, interest_rate::interest_rate_client,
@@ -107,7 +107,7 @@ pub fn calculate_irr_wip(
 }
 
 fn _irr(cash_flow: Vec<f64>) -> Option<f64> {
-    let all_roots = roots(cash_flow);
+    let all_roots = _roots(cash_flow);
     let mut potential_roots: Vec<f64> = vec![];
 
     for root in all_roots {
@@ -116,27 +116,30 @@ fn _irr(cash_flow: Vec<f64>) -> Option<f64> {
         }
     }
 
+    // If no real or valid roots
     if potential_roots.len() == 0 {
         return None;
     }
 
+    // If one root
     if potential_roots.len() == 1 {
-        return Some(potential_roots[0]);
+        return Some(potential_roots[0] - 1.0);
     }
 
-    let mut abs_root: Vec<(f64, f64)> = potential_roots
+    // If many roots -> choose most valid
+    let abs_root: Vec<(f64, f64)> = potential_roots
         .iter()
         .map(|r| (r.to_owned(), r.abs()))
         .collect();
     let min_root = abs_root.iter().min_by(|x, y| x.1.total_cmp(&y.1)).unwrap();
-    return Some(min_root.0);
+    return Some(min_root.0 - 1.0);
 }
 
 // https://math.mit.edu/~edelman/publications/polynomial_roots.pdf
 // https://web.mit.edu/18.06/www/Spring17/Eigenvalue-Polynomials.pdf
 // Find the roots of the polynomial given.
 // Roots are the eigenvalues of the companion matrix of the polynomial.
-fn roots(coeffs: Vec<f64>) -> Vec<f64> {
+fn _roots(coeffs: Vec<f64>) -> Vec<f64> {
     let n = coeffs.len() - 1;
 
     if n < 1 {
@@ -203,7 +206,7 @@ fn _reverse_matrix(matrix: &DMatrix<f64>) -> DMatrix<f64> {
 }
 
 // https://github.com/numpy/numpy/blob/1c8b03bf2c87f081eea211a5061e423285c548af/numpy/polynomial/polyutils.py#L286
-fn _map_domain(x: &Vec<f64>, old: (f64, f64), new: (f64, f64)) -> Vec<f64> {
+fn _map_domain(x: &Vec<f64>, _old: (f64, f64), _new: (f64, f64)) -> Vec<f64> {
     // let off = new.0 - ((new.1 - new.0) / (old.1 - old.0)) * old.0;
     // let scl = (new.1 - new.0) / (old.1 - old.0);
 
@@ -214,13 +217,15 @@ fn _map_domain(x: &Vec<f64>, old: (f64, f64), new: (f64, f64)) -> Vec<f64> {
 mod matrix_tests {
     use nalgebra::dmatrix;
 
-    use crate::producer::calculations::{_companion_matrix, _reverse_matrix, roots};
+    use crate::producer::calculations::{_companion_matrix, _reverse_matrix};
+
+    use super::_roots;
 
     #[test]
     async fn roots_test_1() {
         let input = vec![-2.0, 1.0]; //
         let expected: Vec<f64> = vec![2.0];
-        let roots = roots(input);
+        let roots = _roots(input);
         let mut i = 0;
         while i < expected.len() {
             let expected_rounded: f64 = (expected[i] * 100.0).round() / 100.0;
@@ -235,7 +240,7 @@ mod matrix_tests {
     async fn test_root_2() {
         let coeffs = vec![1.0, -5.0, 6.0]; // x^2 - 5x + 6 = (x - 2)(x - 3)
         let expected: Vec<f64> = vec![2.0, 3.0]; // Roots: x = 2, 3
-        let roots = roots(coeffs);
+        let roots = _roots(coeffs);
         let mut i = 0;
         while i < expected.len() {
             let expected_rounded: f64 = (expected[i] * 100.0).round() / 100.0;
@@ -250,7 +255,7 @@ mod matrix_tests {
     async fn test_root_3() {
         let coeffs = vec![1.0, -6.0, 11.0, -6.0]; // x^3 - 6x^2 + 11x - 6 = (x - 1)(x - 2)(x - 3)
         let expected: Vec<f64> = vec![1.0, 2.0, 3.0]; // Roots: x = 1, 2, 3
-        let roots = roots(coeffs);
+        let roots = _roots(coeffs);
         let mut i = 0;
         while i < expected.len() {
             let expected_rounded: f64 = (expected[i] * 100.0).round() / 100.0;
@@ -265,7 +270,7 @@ mod matrix_tests {
     async fn test_root_4() {
         let coeffs = vec![1.0, 2.0, 3.0]; // x^2 + 2x + 3
         let expected: Vec<f64> = Vec::new(); // No real roots
-        let roots = roots(coeffs);
+        let roots = _roots(coeffs);
         let mut i = 0;
         while i < expected.len() {
             let expected_rounded: f64 = (expected[i] * 100.0).round() / 100.0;
@@ -358,6 +363,34 @@ mod yield_calculations {
         let yield_ = calculate_irr_wip(config, 100000, 800, 200, 2.00);
         let yield_rounded = (yield_ * 10000.0).round() / 10000.0;
         assert_eq!(yield_rounded, 0.2075)
+    }
+
+    #[test]
+    async fn test_irr_1() {
+        let cash_flow: Vec<f64> = vec![-100000.0, 20000.0, 50000.0, 70000.0];
+        let irr_raw = _irr(cash_flow).unwrap();
+        let irr = (irr_raw * 1000000.0).round() / 1000000.0;
+        assert_eq!(irr, 0.156152)
+    }
+
+    #[test]
+    async fn test_irr_2() {
+        let cash_flow: Vec<f64> = vec![-100000.0, 20000.0, 50000.0, 20000.0];
+        let irr_raw = _irr(cash_flow).unwrap();
+        let irr = (irr_raw * 1000000.0).round() / 1000000.0;
+        assert_eq!(irr, -0.051028)
+    }
+
+    #[test]
+    async fn test_irr_3() {
+        let cash_flow: Vec<f64> = vec![
+            -21000.00, 3790.00, 3914.05, 4039.87, 4167.47, 4296.90, 4428.19, 4561.35, 4696.42,
+            4833.43, 4972.42, 5113.41, 5256.44, 5401.54, 5548.74, 5698.07, 5849.58, 6003.30,
+            6159.26, 6317.50, 6478.06, 6640.97, 6806.27, 6974.01, 7144.22, 7316.94,
+        ];
+        let irr_raw = _irr(cash_flow).unwrap();
+        let irr = (irr_raw * 1000000.0).round() / 1000000.0;
+        assert_eq!(irr, 0.207468)
     }
 
     #[test]
