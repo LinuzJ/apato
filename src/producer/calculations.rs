@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use log::error;
+use nalgebra::DMatrix;
 
 use crate::{
     config::Config, db, interest_rate::interest_rate_client,
@@ -104,6 +105,63 @@ pub fn calculate_irr_wip(
     let year_1_income = rent * 12;
 
     return 1.0;
+}
+
+// fn fn irr(
+//     cash_flow: Vec<i32>,
+
+// )
+
+fn companion_matrix(coeffs: &Vec<f64>) -> DMatrix<f64> {
+    let n = coeffs.len();
+    let mut companion = DMatrix::<f64>::zeros(n, n);
+
+    // Set the diagonal flags for which poly degree
+    for i in 0..(n - 1) {
+        companion[(i + 1, i)] = 1.0;
+    }
+
+    // Set the coeffs in the last column
+    for i in 0..n {
+        companion[(i, n - 1)] = -coeffs[i];
+    }
+
+    companion
+}
+
+#[cfg(test)]
+mod root_tests {
+    use nalgebra::dmatrix;
+
+    use crate::producer::calculations::companion_matrix;
+
+    #[test]
+    async fn companion_matrix_test_1() {
+        let input = vec![2.0, 3.0, 4.0];
+
+        let expected = dmatrix![0.0, 0.0, -2.0;
+                                1.0, 0.0, -3.0;
+                                0.0, 1.0, -4.0];
+
+        let matrix = companion_matrix(&input);
+
+        assert_eq!(matrix, expected)
+    }
+
+    #[test]
+    async fn companion_matrix_test_2() {
+        let input = vec![-2.0, 3.0, 4.0, -5.0, 0.0];
+
+        let expected = dmatrix![0.0, 0.0, 0.0 ,0.0, 2.0;
+                                1.0, 0.0, 0.0, 0.0, -3.0;
+                                0.0, 1.0, 0.0, 0.0, -4.0;
+                                0.0, 0.0, 1.0, 0.0, 5.0;
+                                0.0, 0.0, 0.0, 1.0, 0.0];
+
+        let matrix = companion_matrix(&input);
+
+        assert_eq!(matrix, expected)
+    }
 }
 
 #[cfg(test)]
