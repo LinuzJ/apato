@@ -1,7 +1,6 @@
-use std::sync::Arc;
-
 use log::error;
-use nalgebra::DMatrix;
+use nalgebra::{Complex, DMatrix, SVD};
+use std::{result, sync::Arc, vec};
 
 use crate::{
     config::Config, db, interest_rate::interest_rate_client,
@@ -107,13 +106,75 @@ pub fn calculate_irr_wip(
     return 1.0;
 }
 
-// fn fn irr(
-//     cash_flow: Vec<i32>,
+fn _irr(cash_flow: Vec<f64>) -> Option<f64> {
+    let all_roots = roots(cash_flow);
+    let mut potential_roots: Vec<f64> = vec![];
 
-// )
+    for root in all_roots {
+        if root >= -1.0 {
+            potential_roots.push(root);
+        }
+    }
 
-fn companion_matrix(coeffs: &Vec<f64>) -> DMatrix<f64> {
-    let n = coeffs.len();
+    if potential_roots.len() == 0 {
+        return None;
+    }
+
+    if potential_roots.len() == 1 {
+        return Some(potential_roots[0]);
+    }
+
+    let mut abs_root: Vec<(f64, f64)> = potential_roots
+        .iter()
+        .map(|r| (r.to_owned(), r.abs()))
+        .collect();
+    let min_root = abs_root.iter().min_by(|x, y| x.1.total_cmp(&y.1)).unwrap();
+    return Some(min_root.0);
+}
+
+// https://math.mit.edu/~edelman/publications/polynomial_roots.pdf
+// https://web.mit.edu/18.06/www/Spring17/Eigenvalue-Polynomials.pdf
+// Find the roots of the polynomial given.
+// Roots are the eigenvalues of the companion matrix of the polynomial.
+fn roots(coeffs: Vec<f64>) -> Vec<f64> {
+    let n = coeffs.len() - 1;
+
+    if n < 1 {
+        return vec![];
+    } else if n == 1 {
+        return vec![-coeffs[0] / coeffs[1]];
+    }
+
+    let mut _companion_matrix = _companion_matrix(&coeffs);
+    // Reverse matrix to minimize error of eigenvalue roots
+    _companion_matrix = _reverse_matrix(&_companion_matrix);
+    let eigenvalues_complx = _companion_matrix.complex_eigenvalues();
+    let eigenvalues = eigenvalues_complx.data.as_vec();
+
+    let mut real_roots: Vec<f64> = vec![];
+
+    for r in eigenvalues {
+        if r.im == 0.0 {
+            real_roots.push(r.re);
+        }
+    }
+
+    let roots = _map_domain(&real_roots, (-1.0, 1.0), (-1.0, 1.0));
+    return roots;
+}
+
+// Generate the companion matrix of the polynomial given
+fn _companion_matrix(polynomial: &Vec<f64>) -> DMatrix<f64> {
+    let n = polynomial.len() - 1;
+
+    if n < 1 {
+        panic!("polynomial must have maximum degree of at least 1.");
+    } else if n == 1 {
+        let mut companion = DMatrix::<f64>::zeros(1, 1);
+        companion[(0, 0)] = -polynomial[0] / polynomial[1];
+        return companion;
+    }
+
     let mut companion = DMatrix::<f64>::zeros(n, n);
 
     // Set the diagonal flags for which poly degree
@@ -121,44 +182,158 @@ fn companion_matrix(coeffs: &Vec<f64>) -> DMatrix<f64> {
         companion[(i + 1, i)] = 1.0;
     }
 
-    // Set the coeffs in the last column
+    // Set the coeff of the polynomial in the last column
     for i in 0..n {
-        companion[(i, n - 1)] = -coeffs[i];
+        companion[(i, n - 1)] = -polynomial[i] / polynomial[n];
     }
 
     companion
 }
 
+fn _reverse_matrix(matrix: &DMatrix<f64>) -> DMatrix<f64> {
+    let mut reversed = DMatrix::<f64>::zeros(matrix.nrows(), matrix.ncols());
+
+    for i in 0..matrix.nrows() {
+        for j in 0..matrix.ncols() {
+            reversed[(i, j)] = matrix[(matrix.nrows() - 1 - i, matrix.ncols() - 1 - j)];
+        }
+    }
+
+    reversed
+}
+
+// https://github.com/numpy/numpy/blob/1c8b03bf2c87f081eea211a5061e423285c548af/numpy/polynomial/polyutils.py#L286
+fn _map_domain(x: &Vec<f64>, old: (f64, f64), new: (f64, f64)) -> Vec<f64> {
+    // let off = new.0 - ((new.1 - new.0) / (old.1 - old.0)) * old.0;
+    // let scl = (new.1 - new.0) / (old.1 - old.0);
+
+    return x.iter().map(|&val| 1.0 / val).collect();
+}
+
 #[cfg(test)]
-mod root_tests {
+mod matrix_tests {
     use nalgebra::dmatrix;
 
-    use crate::producer::calculations::companion_matrix;
+    use crate::producer::calculations::{_companion_matrix, _reverse_matrix, roots};
 
     #[test]
-    async fn companion_matrix_test_1() {
-        let input = vec![2.0, 3.0, 4.0];
+    async fn roots_test_1() {
+        let input = vec![-2.0, 1.0]; //
+        let expected: Vec<f64> = vec![2.0];
+        let roots = roots(input);
+        let mut i = 0;
+        while i < expected.len() {
+            let expected_rounded: f64 = (expected[i] * 100.0).round() / 100.0;
+            let real_rounded: f64 = (roots[i] * 100.0).round() / 100.0;
 
-        let expected = dmatrix![0.0, 0.0, -2.0;
-                                1.0, 0.0, -3.0;
-                                0.0, 1.0, -4.0];
+            assert_eq!(expected_rounded, real_rounded);
+            i += 1;
+        }
+    }
 
-        let matrix = companion_matrix(&input);
+    #[test]
+    async fn test_root_2() {
+        let coeffs = vec![1.0, -5.0, 6.0]; // x^2 - 5x + 6 = (x - 2)(x - 3)
+        let expected: Vec<f64> = vec![2.0, 3.0]; // Roots: x = 2, 3
+        let roots = roots(coeffs);
+        let mut i = 0;
+        while i < expected.len() {
+            let expected_rounded: f64 = (expected[i] * 100.0).round() / 100.0;
+            let real_rounded: f64 = (roots[i] * 100.0).round() / 100.0;
+
+            assert_eq!(expected_rounded, real_rounded);
+            i += 1;
+        }
+    }
+
+    #[test]
+    async fn test_root_3() {
+        let coeffs = vec![1.0, -6.0, 11.0, -6.0]; // x^3 - 6x^2 + 11x - 6 = (x - 1)(x - 2)(x - 3)
+        let expected: Vec<f64> = vec![1.0, 2.0, 3.0]; // Roots: x = 1, 2, 3
+        let roots = roots(coeffs);
+        let mut i = 0;
+        while i < expected.len() {
+            let expected_rounded: f64 = (expected[i] * 100.0).round() / 100.0;
+            let real_rounded: f64 = (roots[i] * 100.0).round() / 100.0;
+
+            assert_eq!(expected_rounded, real_rounded);
+            i += 1;
+        }
+    }
+
+    #[test]
+    async fn test_root_4() {
+        let coeffs = vec![1.0, 2.0, 3.0]; // x^2 + 2x + 3
+        let expected: Vec<f64> = Vec::new(); // No real roots
+        let roots = roots(coeffs);
+        let mut i = 0;
+        while i < expected.len() {
+            let expected_rounded: f64 = (expected[i] * 100.0).round() / 100.0;
+            let real_rounded: f64 = (roots[i] * 100.0).round() / 100.0;
+
+            assert_eq!(expected_rounded, real_rounded);
+            i += 1;
+        }
+    }
+
+    #[test]
+    async fn _companion_matrix_test_1() {
+        let input = vec![1.0, 2.0, 3.0];
+
+        let expected = dmatrix![0.0, -0.3333333333333333;
+                                1.0,  -0.6666666666666666;];
+
+        let matrix = _companion_matrix(&input);
 
         assert_eq!(matrix, expected)
     }
 
     #[test]
-    async fn companion_matrix_test_2() {
-        let input = vec![-2.0, 3.0, 4.0, -5.0, 0.0];
+    async fn _companion_matrix_test_2() {
+        let input = vec![-2.0, 3.0, 4.0, -5.0, 1.0];
 
-        let expected = dmatrix![0.0, 0.0, 0.0 ,0.0, 2.0;
-                                1.0, 0.0, 0.0, 0.0, -3.0;
-                                0.0, 1.0, 0.0, 0.0, -4.0;
-                                0.0, 0.0, 1.0, 0.0, 5.0;
-                                0.0, 0.0, 0.0, 1.0, 0.0];
+        let expected = dmatrix![
+            0.0, 0.0, 0.0, 2.0;
+            1.0, 0.0, 0.0, -3.0;
+            0.0, 1.0, 0.0, -4.0;
+            0.0, 0.0, 1.0, 5.0;
+        ];
 
-        let matrix = companion_matrix(&input);
+        let matrix = _companion_matrix(&input);
+
+        assert_eq!(matrix, expected)
+    }
+
+    #[test]
+    async fn _companion_matrix_test_3() {
+        let input = vec![1.0, -6.0, 11.0, -6.0];
+
+        let expected = dmatrix![
+            0.0, 0.0, 0.16666666666666666;
+            1.0, 0.0, -1.0;
+            0.0, 1.0, 1.8333333333333333;
+        ];
+
+        let matrix = _companion_matrix(&input);
+
+        assert_eq!(matrix, expected)
+    }
+
+    #[test]
+    async fn test_reverse_matrix_1() {
+        let input = dmatrix![
+            0.0, 0.0, 0.0, 2.0;
+            1.0, 0.0, 0.0, -3.0;
+            0.0, 1.0, 0.0, -4.0;
+            0.0, 0.0, 1.0, 5.0;
+        ];
+        let expected = dmatrix![
+            5.0, 1.0, 0.0, 0.0;
+            -4.0, 0.0, 1.0, 0.0;
+            -3.0, 0.0, 0.0, 1.0;
+            2.0, 0.0, 0.0, 0.0;
+        ];
+        let matrix = _reverse_matrix(&input);
 
         assert_eq!(matrix, expected)
     }
