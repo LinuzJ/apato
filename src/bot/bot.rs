@@ -360,7 +360,7 @@ async fn send_formatted_message_all_valid(
         .enumerate()
         .map(|(index, apartment)| {
             format!(
-                "{}: \n Location: {} \n Size: {} \n Price: {} \n Estimated Yield: {} \n Url: {}",
+                "{}: \n Location: {} \n Size: {} \n Price: {} \n Estimated Rent: {} \n Estimated Yield: {} \n Url: {}",
                 index,
                 apartment
                     .location_name
@@ -368,8 +368,9 @@ async fn send_formatted_message_all_valid(
                     .unwrap_or(&"N/A".to_string()),
                 apartment.size.unwrap_or(0.0),
                 apartment.price.unwrap_or(0),
+                apartment.rent.unwrap_or_default(),
                 apartment.estimated_yield.unwrap_or(0.0),
-                "TODO"
+                apartment.url.as_ref().unwrap_or(&"N/A".to_string())
             )
         })
         .collect();

@@ -52,6 +52,7 @@ pub async fn process_apartment_calculations(
             additional_costs: apartment.additional_costs,
             rent: apartment.rent,
             estimated_yield: Some(apartment_yield),
+            url: apartment.url,
             watchlist_id: apartment.watchlist_id,
         };
         db::apartment::insert(&config, insertable_apartment);
@@ -106,7 +107,7 @@ pub fn calculate_irr(
     }
     let irr: f64 = _irr(yearly_cash_flows).unwrap_or_default();
 
-    return irr;
+    return irr * 100.0;
 }
 
 fn get_rent(config: &Arc<Config>, year: u32, rent: f64) -> f64 {

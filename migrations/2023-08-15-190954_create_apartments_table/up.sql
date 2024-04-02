@@ -10,6 +10,7 @@ CREATE TABLE apartments (
     additional_costs INT,
     rent INT,
     estimated_yield FLOAT,
+    url TEXT,
     watchlist_id INTEGER NOT NULL REFERENCES watchlists ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()

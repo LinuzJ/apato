@@ -13,6 +13,7 @@ diesel::table! {
         additional_costs -> Nullable<Int4>,
         rent -> Nullable<Int4>,
         estimated_yield -> Nullable<Float8>,
+        url -> Nullable<Text>,
         watchlist_id -> Int4,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,

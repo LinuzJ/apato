@@ -411,6 +411,7 @@ async fn card_into_complete_apartment(
             additional_costs: Some(0),
             rent: Some(rent),
             estimated_yield: Some(0.0),
+            url: Some(card.url.clone()),
             watchlist_id: -1,
         };
     }
@@ -444,6 +445,7 @@ async fn card_into_complete_apartment(
         additional_costs: Some(card_data.ad_data.maintenance_fee as i32),
         rent: Some(0),
         estimated_yield: Some(0.0),
+        url: Some(card.url.clone()),
         watchlist_id: watchlist_id,
     }
 }

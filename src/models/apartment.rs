@@ -15,6 +15,7 @@ pub struct InsertableApartment {
     pub additional_costs: Option<i32>,
     pub rent: Option<i32>,
     pub estimated_yield: Option<f64>,
+    pub url: Option<String>,
     pub watchlist_id: i32,
 }
 
@@ -34,6 +35,7 @@ pub struct Apartment {
     pub additional_costs: Option<i32>,
     pub rent: Option<i32>,
     pub estimated_yield: Option<f64>,
+    pub url: Option<String>,
     pub watchlist_id: i32,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
