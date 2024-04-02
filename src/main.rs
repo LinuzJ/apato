@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use apato::{
-    self, bot::bot::ApatoBot, config, logger::setup_logger,
+    self, bot::bot::ApatoTelegramBot, config, logger::setup_logger,
     producer::pricing_producer::PricingProducer,
 };
 use config::Config;
@@ -16,7 +16,7 @@ async fn main() -> Result<()> {
     let config: Arc<Config> = Arc::new(config::read_config());
 
     // Telegram bot
-    let bot = ApatoBot::new(&config).await?;
+    let bot = ApatoTelegramBot::new(config.clone()).await?;
     let (bot_handle, _s) = bot.spawn();
 
     // Launch producer process

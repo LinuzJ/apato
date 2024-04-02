@@ -57,13 +57,13 @@ pub enum Command {
     GetAllValid(i32),
 }
 
-pub struct ApatoBot {
+pub struct ApatoTelegramBot {
     pub dispatcher: Dispatcher<Arc<Bot>, anyhow::Error, DefaultKey>,
     pub tg: Arc<Bot>,
 }
 
-impl ApatoBot {
-    pub async fn new(config: &Config) -> Result<Self> {
+impl ApatoTelegramBot {
+    pub async fn new(config: Arc<Config>) -> Result<Self> {
         let telegram_bot_token = &config.telegram_bot_token;
 
         let tg = Arc::new(Bot::new(telegram_bot_token));
@@ -76,14 +76,14 @@ impl ApatoBot {
         );
 
         let dispatcher = Dispatcher::builder(tg.clone(), handler)
-            .dependencies(dptree::deps![config.clone()])
+            .dependencies(dptree::deps![config])
             .default_handler(|upd| async move { println!("{:?}", upd) })
             .error_handler(LoggingErrorHandler::with_custom_text(
                 "an error has occurred in the dispatcher",
             ))
             .build();
 
-        let bot = ApatoBot {
+        let bot = ApatoTelegramBot {
             dispatcher,
             tg: tg.clone(),
         };
