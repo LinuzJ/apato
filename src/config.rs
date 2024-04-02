@@ -13,6 +13,7 @@ pub struct Config {
     pub down_payment_percentage: u32,
     pub avg_vacant_month_per_year: u32,
     pub avg_estimated_rent_increase_per_year: u32,
+    pub estimated_yearly_apartment_price_increase: u32,
     pub avg_renovation_costs: u32,
     pub tax: u32,
 }
@@ -25,6 +26,7 @@ pub fn create_test_config() -> Config {
         down_payment_percentage: 20,
         avg_vacant_month_per_year: 1,
         avg_estimated_rent_increase_per_year: 1,
+        estimated_yearly_apartment_price_increase: 2,
         avg_renovation_costs: 5000,
         tax: 30,
     }

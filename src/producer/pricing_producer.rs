@@ -49,10 +49,10 @@ impl PricingProducer {
 
                 let mut oikotie_client = Oikotie::new().await;
 
-                let apartments: Option<Vec<InsertableApartment>> =
-                    oikotie_client.get_apartments(&watchlist).await;
+                let apartments: Vec<InsertableApartment> =
+                    oikotie_client.get_apartments(&watchlist).await.unwrap();
 
-                process_apartment_calculations(&config, apartments, oikotie_client).await;
+                process_apartment_calculations(&config, apartments, oikotie_client).await?;
 
                 info!(
                     "Finished price calculations for watchlist_id: {:?}",
