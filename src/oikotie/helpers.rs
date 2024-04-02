@@ -70,13 +70,10 @@ pub fn estimated_rent(
         .collect();
 
     let sum: i32 = similar_size_apartment_rents.iter().sum();
-    let sum_float: f64 = sum as f64;
-    let count: f64 = similar_size_apartment_rents.len() as f64;
+    let count = similar_size_apartment_rents.len();
 
     // If there are no similar size apartments, scale rent by relation to median
-    if count == 0.0 {
-        #[allow(unused_assignments)]
-        let mut estimated_rent: f64 = 0.0;
+    if count == 0 {
         let mut rent_only: Vec<i32> = apartments.iter().map(|ap| ap.rent.unwrap()).collect();
         let mut size_only: Vec<i32> = apartments
             .iter()
@@ -87,18 +84,25 @@ pub fn estimated_rent(
         let size_median: f64 = calculate_median(&mut size_only);
 
         if apartment.rent.unwrap() as f64 > rent_median {
-            let percentage_bigger_than_median =
-                ((apartment.size.unwrap() - size_median) / size_median) + 1.0;
-            estimated_rent = (rent_median as f64) * percentage_bigger_than_median;
-        } else {
-            let percentage_smaller_than_median =
-                1.0 - ((size_median - apartment.size.unwrap()) / size_median);
-            estimated_rent = (rent_median as f64) * percentage_smaller_than_median;
-        }
+            let deviation = bigger_than_median(apartment.size.unwrap(), size_median);
 
-        let final_rent: i32 = estimated_rent as i32;
-        return final_rent;
+            let estimated_rent = rent_median * deviation;
+            return estimated_rent as i32;
+        } else {
+            let deviation = smaller_than_median(apartment.size.unwrap(), size_median);
+
+            let estimated_rent = rent_median * deviation;
+            return estimated_rent as i32;
+        }
     }
 
-    return (sum_float / count) as i32;
+    return (sum as f64 / count as f64) as i32;
+}
+
+fn bigger_than_median(size: f64, median: f64) -> f64 {
+    ((size - median) / median) + 1.0
+}
+
+fn smaller_than_median(size: f64, median: f64) -> f64 {
+    1.0 - ((median - size) / median)
 }
