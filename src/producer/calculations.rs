@@ -313,6 +313,7 @@ fn _map_domain(x: &Vec<f64>, _old: (f64, f64), _new: (f64, f64)) -> Vec<f64> {
     // let off = new.0 - ((new.1 - new.0) / (old.1 - old.0)) * old.0;
     // let scl = (new.1 - new.0) / (old.1 - old.0);
 
+    // TODO: figure out why roots are inverse :D
     return x.iter().map(|&val| 1.0 / val).collect();
 }
 
