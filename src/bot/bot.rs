@@ -342,8 +342,11 @@ fn parse_subscribe_message(input: String) -> Result<(SubscriptionArgs,), ParseEr
 }
 
 fn parse_string_to_int_message(input: String) -> Result<(i32,), ParseError> {
-    let watchlist_id = input.parse::<i32>().unwrap();
-    Ok((watchlist_id,))
+    let input = input.parse::<i32>();
+    match input {
+        Ok(id) => Ok((id,)),
+        Err(e) => Err(ParseError::Custom(Box::from(e))),
+    }
 }
 
 async fn send_formatted_message_all_valid(
@@ -357,7 +360,7 @@ async fn send_formatted_message_all_valid(
         .enumerate()
         .map(|(index, apartment)| {
             format!(
-                "{}: \n Location: {} \n Size: {} \n Price: {} \n Estimated Yield: {}",
+                "{}: \n Location: {} \n Size: {} \n Price: {} \n Estimated Yield: {} \n Url: {}",
                 index,
                 apartment
                     .location_name
@@ -365,7 +368,8 @@ async fn send_formatted_message_all_valid(
                     .unwrap_or(&"N/A".to_string()),
                 apartment.size.unwrap_or(0.0),
                 apartment.price.unwrap_or(0),
-                apartment.estimated_yield.unwrap_or(0.0)
+                apartment.estimated_yield.unwrap_or(0.0),
+                "TODO"
             )
         })
         .collect();
