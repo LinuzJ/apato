@@ -36,28 +36,28 @@ diesel migration run
 Subscribe to a watchlist at location `id` and set the wanted yield to be `yield`
 
 ```
-   /sub {location id} {yield}
+   /sub {location id} yield={yield} size={size}
 ```
 
-Unsubscribe to a watchlist with watchlist id `id` // TODO
+Unsubscribe to a watchlist with watchlist id `id`
 
 ```
    /unsub {watchlist id}
 ```
 
-Lists all the current watchlists of the caller // TODO
+Lists all the current watchlists of the caller
 
 ```
    /listsubs
 ```
 
-Get information about all apartments currently in `watchlist id` // TODO
+Get information about all apartments currently in `watchlist id`
 
 ```
    /getall {watchlist id}
 ```
 
-Get information about all apartments in the wanted yield range currently in `watchlist id` // TODO
+Get information about all apartments in the wanted yield range currently in `watchlist id`
 
 ```
    /getallvalid

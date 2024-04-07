@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
+use super::{establish_connection, schema::watchlists, schema::watchlists::dsl::*};
 use crate::config::Config;
 use crate::models::watchlist::InsertableWatchlist;
 use crate::{models::watchlist::Watchlist, oikotie::oikotie::Location};
 use diesel::prelude::*;
+use diesel::result::Error;
 use log::error;
 use log::info;
-
-use super::{establish_connection, schema::watchlists, schema::watchlists::dsl::*};
 
 pub fn insert(
     config: &Arc<Config>,
@@ -93,4 +93,16 @@ pub fn get_for_user(config: &Arc<Config>, id_: i32) -> Vec<Watchlist> {
         .expect("Error loading watchlists for user}");
 
     r
+}
+
+pub fn check_user(config: &Arc<Config>, user: i32, watchlist: i32) -> bool {
+    let mut con = &mut establish_connection(config);
+
+    let watchlist_from_db: Vec<Watchlist> = watchlists
+        .filter(id.eq(watchlist))
+        .select(Watchlist::as_select())
+        .load(con)
+        .expect("Error loading watchlists for user}");
+
+    return watchlist_from_db[0].user_id == user;
 }

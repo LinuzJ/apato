@@ -31,7 +31,7 @@ pub enum Command {
     Help,
 
     #[command(
-        description = "Subscribe to a location watchlist. Provide the args in the following format: \n /sub {location name} {size (m^2)} {target yield}. \n Example: \n '/sub ullanlinna 60 10",
+        description = "Subscribe to a location watchlist. Provide the args in the following format: < /sub {location name} size={size (m^2)} yield={target yield}. > \n\n Example: \n '< /sub ullanlinna size=60 yield=10 >",
         parse_with = parse_subscribe_message
     )]
     Sub(SubscriptionArgs),
@@ -257,8 +257,19 @@ pub async fn handle_command(
                 }
             }
             Command::GetAll(watchlist_id) => {
-                let all_apartments_result =
-                    db::apartment::get_all_for_watchlist(&config, watchlist_id);
+                let user = message.from();
+                let user_id = match user {
+                    Some(u) => u.id.0,
+                    None => {
+                        error!("Failed to parse user-id from telegram user");
+                        0 // TODO use temp default id
+                    }
+                };
+                let all_apartments_result = db::apartment::get_all_for_watchlist(
+                    &config,
+                    user_id.try_into().unwrap(),
+                    watchlist_id,
+                );
                 let mut all_apartments: Option<Vec<Apartment>> = None;
 
                 match all_apartments_result {
@@ -277,8 +288,19 @@ pub async fn handle_command(
                 }
             }
             Command::GetAllValid(watchlist_id) => {
-                let apartments_result =
-                    db::apartment::get_all_valid_for_watchlist(&config, watchlist_id);
+                let user = message.from();
+                let user_id = match user {
+                    Some(u) => u.id.0,
+                    None => {
+                        error!("Failed to parse user-id from telegram user");
+                        0 // TODO use temp default id
+                    }
+                };
+                let apartments_result = db::apartment::get_all_valid_for_watchlist(
+                    &config,
+                    user_id.try_into().unwrap(),
+                    watchlist_id,
+                );
                 let mut apartments: Option<Vec<Apartment>> = None;
 
                 match apartments_result {
