@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::{
     establish_connection, schema::apartments, schema::apartments::dsl::*, schema::watchlists,
-    watchlist::check_user,
+    watchlist::check_chat,
 };
 use crate::{
     config::Config,
@@ -25,13 +25,13 @@ pub fn insert(config: &Arc<Config>, apartment: InsertableApartment) {
 
 pub fn get_all_for_watchlist(
     config: &Arc<Config>,
-    user: i32,
+    chat_id: i32,
     watchlist: i32,
 ) -> Result<Vec<Apartment>, anyhow::Error> {
     let mut con = establish_connection(config);
-    let correct_user = check_user(config, user, watchlist);
-    if !correct_user {
-        return Err(anyhow!("Error: Wrong user"));
+    let correct_chat = check_chat(config, chat_id, watchlist);
+    if !correct_chat {
+        return Err(anyhow!("Error: Wrong chat"));
     }
 
     let all_apartments: Result<Vec<Apartment>, Error> = apartments::table
@@ -44,13 +44,13 @@ pub fn get_all_for_watchlist(
 
 pub fn get_all_valid_for_watchlist(
     config: &Arc<Config>,
-    user: i32,
+    chat_id: i32,
     watchlist: i32,
 ) -> Result<Vec<Apartment>, anyhow::Error> {
     let con = &mut establish_connection(config);
-    let correct_user = check_user(config, user, watchlist);
-    if !correct_user {
-        return Err(anyhow!("Error: Wrong user"));
+    let correct_chat = check_chat(config, chat_id, watchlist);
+    if !correct_chat {
+        return Err(anyhow!("Error: Wrong chat"));
     }
 
     let watchlist_from_db = watchlists::table

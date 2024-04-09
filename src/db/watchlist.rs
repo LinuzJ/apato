@@ -12,7 +12,7 @@ use log::info;
 pub fn insert(
     config: &Arc<Config>,
     location: Location,
-    new_user_id: i32,
+    new_chat_id: i32,
     new_goal_yield: Option<f64>,
 ) {
     let mut connection = establish_connection(config);
@@ -21,7 +21,7 @@ pub fn insert(
         location_id: location.id,
         location_level: location.level,
         location_name: location.name,
-        user_id: new_user_id,
+        chat_id: new_chat_id,
         goal_yield: new_goal_yield,
     };
 
@@ -83,26 +83,27 @@ pub fn get_all(config: &Arc<Config>) -> Vec<Watchlist> {
     }
 }
 
-pub fn get_for_user(config: &Arc<Config>, id_: i32) -> Vec<Watchlist> {
+pub fn get_for_chat(config: &Arc<Config>, id_: i32) -> Vec<Watchlist> {
     let connection = &mut establish_connection(config);
 
     let r: Vec<Watchlist> = watchlists
-        .filter(user_id.eq(id_))
+        .filter(chat_id.eq(id_))
         .select(Watchlist::as_select())
         .load(connection)
-        .expect("Error loading watchlists for user}");
+        .expect("Error loading watchlists for chat}");
 
     r
 }
 
-pub fn check_user(config: &Arc<Config>, user: i32, watchlist: i32) -> bool {
-    let mut con = &mut establish_connection(config);
+pub fn check_chat(config: &Arc<Config>, chat_id_to_check: i32, watchlist: i32) -> bool {
+    let con = &mut establish_connection(config);
 
     let watchlist_from_db: Vec<Watchlist> = watchlists
         .filter(id.eq(watchlist))
+        .filter(chat_id.eq(chat_id_to_check))
         .select(Watchlist::as_select())
         .load(con)
-        .expect("Error loading watchlists for user}");
+        .expect("Error loading watchlists for chat}");
 
-    return watchlist_from_db[0].user_id == user;
+    return watchlist_from_db.len() > 0;
 }

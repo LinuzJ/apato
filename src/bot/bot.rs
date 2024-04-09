@@ -124,10 +124,7 @@ pub async fn handle_command(
             }
             Command::Sub(args) => {
                 let user = message.from();
-                let user_id = match user {
-                    Some(u) => u.id.0,
-                    None => 0, // Default to user id 0
-                };
+                let chat_id = message.chat.id.0 as i32;
 
                 if args.location == "" && args.size == None && args.yield_goal == None {
                     tg.send_message(
@@ -137,8 +134,9 @@ pub async fn handle_command(
                     .await?;
                 }
 
-                // Check if watchlist for this place already exists for this user
-                let existing = db::watchlist::get_for_user(&config, user_id as i32);
+                // Check if watchlist for this place already exists for this chat
+                let existing = db::watchlist::get_for_chat(&config, chat_id);
+
                 if existing.len() > 0 {
                     tg.send_message(
                         message.chat.id,
@@ -190,7 +188,7 @@ pub async fn handle_command(
                     db::watchlist::insert(
                         &config,
                         loc,
-                        user_id as i32,
+                        chat_id,
                         Some(args.yield_goal.unwrap_or(0) as f64),
                     );
                     tg.send_message(message.chat.id, "Added to your watchlist!")
@@ -199,16 +197,10 @@ pub async fn handle_command(
             }
             Command::Unsub(watchlist_id) => {
                 let user = message.from();
-                let user_id = match user {
-                    Some(u) => u.id.0,
-                    None => {
-                        error!("asd");
-                        0
-                    }
-                };
+                let chat_id = message.chat.id.0 as i32;
 
-                // Check if watchlist for this place already exists for this user
-                let existing: Vec<Watchlist> = db::watchlist::get_for_user(&config, user_id as i32)
+                // Check if watchlist for this place already exists for this chat
+                let existing: Vec<Watchlist> = db::watchlist::get_for_chat(&config, chat_id)
                     .iter()
                     .filter(|watchlist| watchlist.id == watchlist_id)
                     .map(|&ref item| item.to_owned())
@@ -225,15 +217,10 @@ pub async fn handle_command(
             }
             Command::ListWatchlists => {
                 let user = message.from();
-                let user_id = match user {
-                    Some(u) => u.id.0,
-                    None => {
-                        error!("Failed to parse user-id from telegram user");
-                        0 // TODO use temp default id
-                    }
-                };
-                // Check if watchlist for this place already exists for this user
-                let existing: Vec<Watchlist> = db::watchlist::get_for_user(&config, user_id as i32);
+                let chat_id = message.chat.id.0 as i32;
+
+                // Check if watchlist for this place already exists for this chat
+                let existing: Vec<Watchlist> = db::watchlist::get_for_chat(&config, chat_id);
                 let formatted: Vec<String> = existing
                     .iter()
                     .enumerate()
@@ -257,18 +244,10 @@ pub async fn handle_command(
             }
             Command::GetAll(watchlist_id) => {
                 let user = message.from();
-                let user_id = match user {
-                    Some(u) => u.id.0,
-                    None => {
-                        error!("Failed to parse user-id from telegram user");
-                        0 // TODO use temp default id
-                    }
-                };
-                let all_apartments_result = db::apartment::get_all_for_watchlist(
-                    &config,
-                    user_id.try_into().unwrap(),
-                    watchlist_id,
-                );
+                let chat_id = message.chat.id.0 as i32;
+
+                let all_apartments_result =
+                    db::apartment::get_all_for_watchlist(&config, chat_id, watchlist_id);
                 let mut all_apartments: Option<Vec<Apartment>> = None;
 
                 match all_apartments_result {
@@ -288,18 +267,9 @@ pub async fn handle_command(
             }
             Command::GetAllValid(watchlist_id) => {
                 let user = message.from();
-                let user_id = match user {
-                    Some(u) => u.id.0,
-                    None => {
-                        error!("Failed to parse user-id from telegram user");
-                        0 // TODO use temp default id
-                    }
-                };
-                let apartments_result = db::apartment::get_all_valid_for_watchlist(
-                    &config,
-                    user_id.try_into().unwrap(),
-                    watchlist_id,
-                );
+                let chat_id = message.chat.id.0 as i32;
+                let apartments_result =
+                    db::apartment::get_all_valid_for_watchlist(&config, chat_id, watchlist_id);
                 let mut apartments: Option<Vec<Apartment>> = None;
 
                 match apartments_result {
