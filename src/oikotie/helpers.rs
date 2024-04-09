@@ -4,7 +4,7 @@ use regex::Regex;
 use super::oikotie::RentalData;
 
 pub fn create_location_string(id: i32, level: i32, name: String) -> String {
-    return format!("[[{:?}, {:?}, {}{}{}]]", id, level, '"', name, '"');
+    format!("[[{:?}, {:?}, {}{}{}]]", id, level, '"', name, '"')
 }
 
 pub fn generate_random_number() -> String {
@@ -15,7 +15,7 @@ pub fn get_rent_regex(rent_string: String) -> i32 {
     let re = Regex::new(r"(\d+)").unwrap();
     let mut result = -1;
 
-    let rent_without_space = rent_string.replace("\u{a0}", "");
+    let rent_without_space = rent_string.replace('\u{a0}', "");
     // Match the pattern against the text
     if let Some(captures) = re.captures(&rent_without_space) {
         // Extract the captured value and convert it to i32
@@ -28,7 +28,7 @@ pub fn get_rent_regex(rent_string: String) -> i32 {
         panic!("lol")
     }
 
-    return result;
+    result
 }
 
 pub fn estimated_rent(size: f32, rental_data_nearby: Vec<RentalData>) -> i32 {
@@ -63,7 +63,7 @@ pub fn estimated_rent(size: f32, rental_data_nearby: Vec<RentalData>) -> i32 {
         }
     }
 
-    return (sum as f64 / count as f64) as i32;
+    (sum as f64 / count as f64) as i32
 }
 
 fn bigger_than_median(size: f32, median: f32) -> f32 {
@@ -81,8 +81,8 @@ fn calculate_median(numbers: &mut Vec<i32>) -> f32 {
     if len % 2 == 0 {
         // If the length is even, take the average of the middle two values
         let mid = len / 2;
-        let median = (numbers[mid - 1] + numbers[mid]) as f32 / 2.0;
-        median
+        
+        (numbers[mid - 1] + numbers[mid]) as f32 / 2.0
     } else {
         // If the length is odd, return the middle value
         numbers[len / 2] as f32

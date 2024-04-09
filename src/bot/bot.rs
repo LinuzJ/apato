@@ -125,7 +125,7 @@ pub async fn handle_command(
             Command::Sub(args) => {
                 let chat_id = message.chat.id.0;
 
-                if args.location == "" && args.size == None && args.yield_goal == None {
+                if args.location.is_empty() && args.size.is_none() && args.yield_goal.is_none() {
                     tg.send_message(
                         message.chat.id,
                         "Please provide the arguments needed. Check /help for guidance.",
@@ -135,9 +135,9 @@ pub async fn handle_command(
 
                 // Check if watchlist for this place already exists for this chat
                 let existing =
-                    db::watchlist::get_for_chat_and_location(&config, chat_id, &args.location);
+                    db::watchlist::get_for_chat_and_location(config, chat_id, &args.location);
 
-                if existing.len() > 0 {
+                if !existing.is_empty() {
                     tg.send_message(
                         message.chat.id,
                         "You already have a watchlist for this location. Updating goal yield...",
@@ -145,7 +145,7 @@ pub async fn handle_command(
                     .await?;
 
                     match db::watchlist::update_yield(
-                        &config,
+                        config,
                         existing[0].id,
                         args.yield_goal.unwrap().into(),
                     )
@@ -155,10 +155,10 @@ pub async fn handle_command(
                         Err(e) => {
                             tg.send_message(
                                 message.chat.id,
-                                format!("Error while updating yield: {}", e.to_string()),
+                                format!("Error while updating yield: {}", e),
                             )
                             .await?;
-                            ()
+                            
                         }
                     };
 
@@ -186,7 +186,7 @@ pub async fn handle_command(
 
                 if let Some(loc) = location {
                     db::watchlist::insert(
-                        &config,
+                        config,
                         loc,
                         chat_id,
                         Some(args.yield_goal.unwrap_or(0) as f64),
@@ -199,17 +199,17 @@ pub async fn handle_command(
                 let chat_id = message.chat.id.0;
 
                 // Check if watchlist for this place already exists for this chat
-                let existing: Vec<Watchlist> = db::watchlist::get_for_chat(&config, chat_id)
+                let existing: Vec<Watchlist> = db::watchlist::get_for_chat(config, chat_id)
                     .iter()
                     .filter(|watchlist| watchlist.id == watchlist_id)
-                    .map(|&ref item| item.to_owned())
+                    .map(|item| item.to_owned())
                     .collect();
 
-                if existing.len() == 0 {
+                if existing.is_empty() {
                     tg.send_message(message.chat.id, "You don't have a watchlist with this ID")
                         .await?;
                 } else {
-                    db::watchlist::delete(&config, watchlist_id);
+                    db::watchlist::delete(config, watchlist_id);
                     tg.send_message(message.chat.id, "Deleted watchlist!")
                         .await?;
                 }
@@ -218,7 +218,7 @@ pub async fn handle_command(
                 let chat_id = message.chat.id.0;
 
                 // Check if watchlist for this place already exists for this chat
-                let existing: Vec<Watchlist> = db::watchlist::get_for_chat(&config, chat_id);
+                let existing: Vec<Watchlist> = db::watchlist::get_for_chat(config, chat_id);
                 let formatted: Vec<String> = existing
                     .iter()
                     .enumerate()
@@ -228,12 +228,12 @@ pub async fn handle_command(
                             index + 1,
                             watchlist.id.clone(),
                             watchlist.location_name.clone(),
-                            watchlist.goal_yield.clone().unwrap()
+                            watchlist.goal_yield.unwrap()
                         )
                     })
                     .collect();
 
-                if formatted.len() == 0 {
+                if formatted.is_empty() {
                     tg.send_message(message.chat.id, "No subs").await?;
                 } else {
                     let joined_formatted = formatted.join("\n");
@@ -244,7 +244,7 @@ pub async fn handle_command(
                 let chat_id = message.chat.id.0;
 
                 let all_apartments_result =
-                    db::apartment::get_all_for_watchlist(&config, chat_id, watchlist_id);
+                    db::apartment::get_all_for_watchlist(config, chat_id, watchlist_id);
                 let mut all_apartments: Option<Vec<Apartment>> = None;
 
                 match all_apartments_result {
@@ -252,7 +252,7 @@ pub async fn handle_command(
                     Err(e) => {
                         tg.send_message(
                             message.chat.id,
-                            format!("Error while fetching: {}", e.to_string()),
+                            format!("Error while fetching: {}", e),
                         )
                         .await?;
                     }
@@ -265,7 +265,7 @@ pub async fn handle_command(
             Command::GetAllValid(watchlist_id) => {
                 let chat_id = message.chat.id.0;
                 let apartments_result =
-                    db::apartment::get_all_valid_for_watchlist(&config, chat_id, watchlist_id);
+                    db::apartment::get_all_valid_for_watchlist(config, chat_id, watchlist_id);
                 let mut apartments: Option<Vec<Apartment>> = None;
 
                 match apartments_result {
@@ -273,7 +273,7 @@ pub async fn handle_command(
                     Err(e) => {
                         tg.send_message(
                             message.chat.id,
-                            format!("Error while fetching: {}", e.to_string()),
+                            format!("Error while fetching: {}", e),
                         )
                         .await?;
                     }

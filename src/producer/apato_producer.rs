@@ -12,7 +12,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::sync::broadcast::Receiver;
-use tokio::time;
+
 
 pub struct Producer;
 
@@ -29,7 +29,7 @@ impl Producer {
             info!("Starting PricingProducer run");
             let start = Instant::now();
 
-            let watchlists = watchlist::get_all(&config);
+            let watchlists = watchlist::get_all(config);
 
             for watchlist in watchlists {
                 info!(
@@ -49,7 +49,7 @@ impl Producer {
                 info!("OIKOTIE PROCESS TAKES {:?}", duration_process);
 
                 let now_ = Instant::now();
-                process_apartment_calculations(&config, apartments, oikotie_client).await?;
+                process_apartment_calculations(config, apartments, oikotie_client).await?;
                 let duration_process_ = now_.elapsed();
 
                 info!(

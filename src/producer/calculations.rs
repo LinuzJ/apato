@@ -26,7 +26,7 @@ pub async fn process_apartment_calculations(
 
         apartment.rent = Some(estimated_rent);
 
-        let interest_rate_result = interest_rate_client::get_interest_rate(&config).await;
+        let interest_rate_result = interest_rate_client::get_interest_rate(config).await;
         let interest_rate = match interest_rate_result {
             Ok(r) => r,
             Err(_e) => {
@@ -57,9 +57,9 @@ pub async fn process_apartment_calculations(
             url: apartment.url,
             watchlist_id: apartment.watchlist_id,
         };
-        db::apartment::insert(&config, insertable_apartment);
+        db::apartment::insert(config, insertable_apartment);
     }
-    return Ok(());
+    Ok(())
 }
 
 pub fn calculate_irr(
@@ -69,7 +69,7 @@ pub fn calculate_irr(
     additional_cost: f64,
     interest_rate: f64,
 ) -> f64 {
-    let loan: f64 = price as f64 + config.avg_renovation_costs as f64;
+    let loan: f64 = price + config.avg_renovation_costs as f64;
     let down_payment_amount: f64 = (config.down_payment_percentage as f64 / 100.0) * loan;
     let initial_principal: f64 = loan - down_payment_amount;
 
@@ -78,9 +78,9 @@ pub fn calculate_irr(
 
     // Calculate cash flows for each year
     for year in 1..(config.loan_duration_years + 1) {
-        let income = get_rent(&config, year, rent);
-        let vacancy = get_vacancy_cost(&config, income / 12.0);
-        let depreciation = get_depreciation(&config);
+        let income = get_rent(config, year, rent);
+        let vacancy = get_vacancy_cost(config, income / 12.0);
+        let depreciation = get_depreciation(config);
         let fixed_costs = -additional_cost * 12.0;
 
         let ebit = income + vacancy + fixed_costs + depreciation;
@@ -101,7 +101,7 @@ pub fn calculate_irr(
         );
         let fcf = ebit + taxes + depreciation_add + interest_payment + principal_payment;
 
-        let apartment_value_increase = valuation_increase(&config, price, year);
+        let apartment_value_increase = valuation_increase(config, price, year);
 
         let fcfe = fcf + apartment_value_increase + (-principal_payment);
 
@@ -110,7 +110,7 @@ pub fn calculate_irr(
     let irr: f64 = _irr(yearly_cash_flows).unwrap_or_default() * 100.0;
 
     // Make sure the value is within reasonable limits
-    if irr > 50.0 || irr < -50.0 {
+    if !(-50.0..=50.0).contains(&irr) {
         return 0.0;
     }
 
@@ -126,7 +126,7 @@ fn get_rent(config: &Arc<Config>, year: u32, rent: f64) -> f64 {
 fn get_vacancy_cost(config: &Arc<Config>, rent: f64) -> f64 {
     let vacancies = config.avg_vacant_month_per_year as f64;
     let rent_missed = rent * vacancies;
-    return -rent_missed;
+    -rent_missed
 }
 
 fn get_depreciation(config: &Arc<Config>) -> f64 {
@@ -145,9 +145,9 @@ fn pmt(interest_rate: f64, periods: f64, pv: f64) -> f64 {
     // Returns:
     // The fixed yearly payment amount.
     if interest_rate == 0.0 {
-        return -pv / periods;
+        -pv / periods
     } else {
-        return (interest_rate / (1.0 - (1.0 + interest_rate).powf(-periods))) * -pv;
+        (interest_rate / (1.0 - (1.0 + interest_rate).powf(-periods))) * -pv
     }
 }
 
@@ -162,8 +162,8 @@ fn future_value(interest_rate: f64, periods: f64, c: f64, pv: f64) -> f64 {
 
     // Returns:
     // The future value after the specified number of periods.
-    return -(c * ((1.0 + interest_rate).powf(periods) - 1.0) / interest_rate
-        + pv * (1.0 + interest_rate).powf(periods));
+    -(c * ((1.0 + interest_rate).powf(periods) - 1.0) / interest_rate
+        + pv * (1.0 + interest_rate).powf(periods))
 }
 
 // Calculates the amount of interest that should be payed at a specific period.
@@ -182,8 +182,8 @@ fn interest_payment_for_period(
     // present_value -- the present value, or the total amount of the loan.
     let total_payment = pmt(interest_rate, total_periods, present_value);
     let future_pv = future_value(interest_rate, period - 1.0, total_payment, present_value);
-    let interest = future_pv * interest_rate;
-    return interest;
+    
+    future_pv * interest_rate
 }
 
 // Calculates the amount of principal that should be payed at a specific period.
@@ -203,14 +203,14 @@ fn principal_payment_for_period(
     let total_payment = pmt(interest_rate, total_periods, present_value);
     let interest_part =
         interest_payment_for_period(interest_rate, period, total_periods, present_value);
-    return total_payment - interest_part;
+    total_payment - interest_part
 }
 
 fn valuation_increase(config: &Arc<Config>, price: f64, year: u32) -> f64 {
     let growth_rate = config.estimated_yearly_apartment_price_increase as f64 / 100.0;
     let this_year = price * (1.0 + growth_rate).powf(year as f64);
     let last_year = price * (1.0 + growth_rate).powf(year as f64 - 1.0);
-    return this_year - last_year;
+    this_year - last_year
 }
 
 fn _irr(cash_flow: Vec<f64>) -> Option<f64> {
@@ -228,7 +228,7 @@ fn _irr(cash_flow: Vec<f64>) -> Option<f64> {
     }
 
     // If no real or valid roots
-    if potential_roots.len() == 0 {
+    if potential_roots.is_empty() {
         return None;
     }
 
@@ -243,7 +243,7 @@ fn _irr(cash_flow: Vec<f64>) -> Option<f64> {
         .map(|r| (r.to_owned(), r.abs()))
         .collect();
     let min_root = abs_root.iter().min_by(|x, y| x.1.total_cmp(&y.1)).unwrap();
-    return Some(min_root.0 - 1.0);
+    Some(min_root.0 - 1.0)
 }
 
 // https://math.mit.edu/~edelman/publications/polynomial_roots.pdf
@@ -254,8 +254,8 @@ fn get_roots(coeffs: Vec<f64>) -> Vec<f64> {
     let n = coeffs.len() - 1;
 
     match n.cmp(&1) {
-        Ordering::Less => return vec![],
-        Ordering::Equal => return vec![-coeffs[0] / coeffs[1]],
+        Ordering::Less => vec![],
+        Ordering::Equal => vec![-coeffs[0] / coeffs[1]],
         Ordering::Greater => {
             let mut companion_matrix = companion_matrix(&coeffs);
             // Reverse matrix to minimize error of eigenvalue roots
@@ -271,8 +271,8 @@ fn get_roots(coeffs: Vec<f64>) -> Vec<f64> {
                 }
             }
 
-            let roots = _map_domain(&real_roots, (-1.0, 1.0), (-1.0, 1.0));
-            return roots;
+            
+            _map_domain(&real_roots, (-1.0, 1.0), (-1.0, 1.0))
         }
     }
 }
@@ -288,7 +288,7 @@ fn companion_matrix(polynomial: &Vec<f64>) -> DMatrix<f64> {
         Ordering::Equal => {
             let mut companion = DMatrix::<f64>::zeros(1, 1);
             companion[(0, 0)] = -polynomial[0] / polynomial[1];
-            return companion;
+            companion
         }
         Ordering::Greater => {
             let mut companion = DMatrix::<f64>::zeros(n, n);
@@ -303,7 +303,7 @@ fn companion_matrix(polynomial: &Vec<f64>) -> DMatrix<f64> {
                 companion[(i, n - 1)] = -polynomial[i] / polynomial[n];
             }
 
-            return companion;
+            companion
         }
     }
 }

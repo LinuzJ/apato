@@ -73,7 +73,7 @@ async fn check_watchlist_for_new_apartment(
         Ok(v) => v,
         Err(e) => {
             error!("Consumer Error while fetching new targets: {:?}", e);
-            bot.send_message(ChatId(chat_id), format!("{}", e.to_string()))
+            bot.send_message(ChatId(chat_id), format!("{}", e))
                 .await?;
             return Ok(());
         }

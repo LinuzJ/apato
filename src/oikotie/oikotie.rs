@@ -153,7 +153,7 @@ impl Oikotie {
         }
 
         let response: Result<Vec<LocationApiResponseItem>, reqwest::Error> =
-            fetch_location_id(&self.tokens.as_ref().unwrap(), location_string).await;
+            fetch_location_id(self.tokens.as_ref().unwrap(), location_string).await;
 
         let potential_locations = match response {
             Ok(l) => Some(l),
@@ -164,19 +164,19 @@ impl Oikotie {
         };
 
         if let Some(locations) = potential_locations {
-            if locations.len() == 0 {
+            if locations.is_empty() {
                 return Err(anyhow!(
                     "Did not find any valid location for '{}', please try again!",
                     location_string
                 ));
             }
 
-            return Ok(locations[0].card.card_id);
+            Ok(locations[0].card.card_id)
         } else {
-            return Err(anyhow!(
+            Err(anyhow!(
                 "Did not find any valid location for '{}', please try again!",
                 location_string
-            ));
+            ))
         }
     }
 
@@ -199,22 +199,22 @@ impl Oikotie {
         };
 
         let cards_response: Result<OitkotieCardsApiResponse, reqwest::Error> =
-            fetch_apartments(&self.tokens.as_ref().unwrap(), location.clone(), false).await;
+            fetch_apartments(self.tokens.as_ref().unwrap(), location.clone(), false).await;
 
         let cards = match cards_response {
             Ok(c) => c.cards,
             Err(_e) => return None,
         };
 
-        let mut cards_iter: std::slice::Iter<'_, Card> = cards.iter();
+        let cards_iter: std::slice::Iter<'_, Card> = cards.iter();
         let mut apartments: Vec<InsertableApartment> = Vec::new();
 
-        while let Some(card) = cards_iter.next() {
+        for card in cards_iter {
             let has_been_updated_recently = has_been_updated_recently(config.clone(), card);
 
             if !has_been_updated_recently {
                 let apartment: InsertableApartment = card_into_complete_apartment(
-                    &self.tokens.as_ref().unwrap(),
+                    self.tokens.as_ref().unwrap(),
                     card,
                     location,
                     Some(watchlist.id),
@@ -224,7 +224,7 @@ impl Oikotie {
             }
         }
 
-        return Some(apartments);
+        Some(apartments)
     }
 
     /*
@@ -244,7 +244,7 @@ impl Oikotie {
         };
 
         let cards_response: Result<OitkotieCardsApiResponse, reqwest::Error> = fetch_apartments(
-            &self.tokens.as_ref().unwrap(),
+            self.tokens.as_ref().unwrap(),
             location.clone(),
             is_handling_rent,
         )
@@ -255,10 +255,10 @@ impl Oikotie {
             Err(_e) => return Err(anyhow!("Error while fetching cards")),
         };
 
-        let mut cards_iter: std::slice::Iter<'_, Card> = cards.iter();
+        let cards_iter: std::slice::Iter<'_, Card> = cards.iter();
         let mut data: Vec<RentalData> = Vec::new();
 
-        while let Some(card) = cards_iter.next() {
+        for card in cards_iter {
             let rent = get_rent_regex(card.price.clone());
             let rent_data = RentalData {
                 rent,
@@ -267,7 +267,7 @@ impl Oikotie {
             data.push(rent_data);
         }
 
-        return Ok(data);
+        Ok(data)
     }
 
     /*
@@ -332,7 +332,7 @@ async fn fetch_location_id(
         Err(e) => return Err(e),
     };
 
-    return Ok(api_response);
+    Ok(api_response)
 }
 
 async fn fetch_card(
@@ -371,7 +371,7 @@ async fn fetch_card(
         Err(e) => return Err(e),
     };
 
-    return Ok(api_response);
+    Ok(api_response)
 }
 
 async fn fetch_apartments(
@@ -414,7 +414,7 @@ async fn fetch_apartments(
         Err(e) => return Err(e),
     };
 
-    return Ok(api_response);
+    Ok(api_response)
 }
 
 async fn card_into_complete_apartment(
@@ -436,10 +436,7 @@ async fn card_into_complete_apartment(
         }
     };
 
-    let watchlist_id = match optional_watchlist_id {
-        Some(id) => id,
-        None => -1,
-    };
+    let watchlist_id = optional_watchlist_id.unwrap_or(-1);
 
     InsertableApartment {
         card_id: Some(card.id.to_string()),
@@ -453,7 +450,7 @@ async fn card_into_complete_apartment(
         rent: Some(0),
         estimated_yield: Some(0.0),
         url: Some(card.url.clone()),
-        watchlist_id: watchlist_id,
+        watchlist_id,
     }
 }
 
@@ -465,11 +462,11 @@ fn has_been_updated_recently(config: Arc<Config>, card: &Card) -> bool {
     let apartments =
         match get_apartments_within_period(&config, card.id.to_string(), cooldown_period) {
             Ok(aps) => aps,
-            Err(e) => {
+            Err(_e) => {
                 error!("Error while querying apartmetns withing period");
                 vec![]
             }
         };
 
-    return apartments.len() != 0;
+    !apartments.is_empty()
 }

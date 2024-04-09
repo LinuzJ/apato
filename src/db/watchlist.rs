@@ -6,10 +6,10 @@ use crate::models::watchlist::InsertableWatchlist;
 use crate::{models::watchlist::Watchlist, oikotie::oikotie::Location};
 use anyhow::anyhow;
 use diesel::prelude::*;
-use diesel::result::Error;
+
 use log::error;
 use log::info;
-use teloxide::types::ChatId;
+
 
 pub fn insert(
     config: &Arc<Config>,
@@ -60,11 +60,11 @@ pub fn get_watchlist(config: &Arc<Config>, watchlist_id: i32) -> Result<Watchlis
         .first(conn)
         .optional();
 
-    return match watchlist_from_db {
+    match watchlist_from_db {
         Ok(Some(w)) => Ok(w),
         Ok(None) => Err(anyhow!("Error: Did not find a watchlist")),
         Err(_) => Err(anyhow!("Error: Did not find a watchlist")),
-    };
+    }
 }
 
 pub async fn update_yield(
@@ -91,11 +91,11 @@ pub fn get_all(config: &Arc<Config>) -> Vec<Watchlist> {
 
     match all_watchlists {
         Ok(w) => {
-            return w;
+            w
         }
         Err(e) => {
             println!("Error: {:?}", e);
-            return Vec::new();
+            Vec::new()
         }
     }
 }
@@ -139,5 +139,5 @@ pub fn check_chat(config: &Arc<Config>, chat_id_to_check: i64, watchlist: i32) -
         .load(con)
         .expect("Error loading watchlists for chat}");
 
-    return watchlist_from_db.len() > 0;
+    !watchlist_from_db.is_empty()
 }

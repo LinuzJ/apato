@@ -42,7 +42,7 @@ pub fn get_all_for_watchlist(
         .select(apartments::table::all_columns())
         .load(&mut con);
 
-    return Ok(all_apartments?);
+    Ok(all_apartments?)
 }
 
 pub fn get_all_valid_for_watchlist(
@@ -61,7 +61,7 @@ pub fn get_all_valid_for_watchlist(
 
     let target_watchlist = match potential_watchlist {
         Ok(w) => w,
-        Err(e) => return Err(anyhow!("No watchlist wound with this name")),
+        Err(_e) => return Err(anyhow!("No watchlist wound with this name")),
     };
 
     // let valid_apartments: Result<Vec<Apartment>, Error> =
@@ -74,7 +74,7 @@ pub fn get_all_valid_for_watchlist(
         .select(Apartment::as_select())
         .load(con);
 
-    return Ok(valid_apartments?);
+    Ok(valid_apartments?)
 }
 
 pub fn get_new_for_watchlist(
@@ -91,7 +91,7 @@ pub fn get_new_for_watchlist(
         .select(Apartment::as_select())
         .load(conn);
 
-    return Ok(valid_apartments?);
+    Ok(valid_apartments?)
 }
 
 pub fn get_apartments_within_period(
@@ -107,5 +107,5 @@ pub fn get_apartments_within_period(
         .select(Apartment::as_select())
         .load(conn);
 
-    return Ok(valid_apartments?);
+    Ok(valid_apartments?)
 }

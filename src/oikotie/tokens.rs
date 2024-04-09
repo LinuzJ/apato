@@ -61,11 +61,11 @@ async fn fetch_tokens() -> Result<Box<OikotieTokens>, reqwest::Error> {
 pub async fn get_tokens() -> Option<Box<OikotieTokens>> {
     let tokens: Result<Box<OikotieTokens>, reqwest::Error> = fetch_tokens().await;
 
-    return match tokens {
+    match tokens {
         Ok(tokens) => Some(tokens),
         Err(_e) => {
             error!("Error while fetching oikotie tokens.. Error: {:?}", _e);
-            return None;
+            None
         }
-    };
+    }
 }

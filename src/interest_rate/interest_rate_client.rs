@@ -78,5 +78,5 @@ pub async fn get_interest_rate(config: &Arc<Config>) -> Result<f64, reqwest::Err
     let response = request.send().await?;
     let api_response: ApiResponse = response.json().await?;
 
-    return Ok(api_response.mortgages[0].interest_rate);
+    Ok(api_response.mortgages[0].interest_rate)
 }
