@@ -9,6 +9,7 @@ const CONFIG_PATH_ENV: &str = "CONFIG_PATH";
 pub struct Config {
     pub db_path: String,
     pub telegram_bot_token: String,
+    pub consumer_timeout_seconds: u32,
     pub loan_duration_years: u32,
     pub down_payment_percentage: u32,
     pub avg_vacant_month_per_year: u32,
@@ -22,6 +23,7 @@ pub fn create_test_config() -> Config {
     Config {
         db_path: "xxx".to_string(),
         telegram_bot_token: "xxx".to_string(),
+        consumer_timeout_seconds: 60,
         loan_duration_years: 25,
         down_payment_percentage: 20,
         avg_vacant_month_per_year: 1,

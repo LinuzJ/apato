@@ -77,7 +77,6 @@ impl ApatoTelegramBot {
 
         let dispatcher = Dispatcher::builder(tg.clone(), handler)
             .dependencies(dptree::deps![config])
-            .default_handler(|upd| async move { println!("{:?}", upd) })
             .error_handler(LoggingErrorHandler::with_custom_text(
                 "an error has occurred in the dispatcher",
             ))

@@ -8,7 +8,10 @@ use anyhow::{Error, Result};
 use helpers::create_location_string;
 use log::error;
 use reqwest::header::{HeaderMap, HeaderValue};
+use serde::de;
+use serde::Deserializer;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use serde_this_or_that::as_u64;
 use tokens::{get_tokens, OikotieTokens};
 
@@ -41,6 +44,7 @@ struct Card {
     url: String,
     description: String,
     rooms: u32,
+    #[serde(deserialize_with = "price_int_or_string")]
     price: String,
     published: String,
     size: f32,
@@ -92,6 +96,17 @@ struct OitkotieCardApiResponse {
     ad_data: AdData,
     price_data: Price,
     status: i32,
+}
+
+// Custom deserialization for price field as it can be int or String
+fn price_int_or_string<'de, D: Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
+    Ok(match Value::deserialize(deserializer)? {
+        Value::String(s) => s.parse().map_err(de::Error::custom)?,
+        Value::Number(num) => {
+            (num.as_f64().ok_or(de::Error::custom("Invalid number"))? as i32).to_string()
+        }
+        _ => return Err(de::Error::custom("wrong type")),
+    })
 }
 
 impl OitkotieCardApiResponse {

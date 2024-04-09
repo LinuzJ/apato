@@ -1,22 +1,27 @@
 use crate::{
-    config::Config,
-    db::watchlist,
-    models::apartment::InsertableApartment,
-    oikotie::oikotie::{Location, Oikotie},
-    producer::calculations::process_apartment_calculations,
+    config::Config, db::watchlist, models::apartment::InsertableApartment,
+    oikotie::oikotie::Oikotie, producer::calculations::process_apartment_calculations,
 };
 use anyhow::Result;
 use log::info;
 use std::{
-    sync::Arc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     time::{Duration, Instant},
 };
+use tokio::sync::broadcast::Receiver;
 use tokio::time;
 
-pub struct PricingProducer {}
+pub struct Producer;
 
-impl PricingProducer {
-    pub async fn run(config: Arc<Config>) -> Result<()> {
+impl Producer {
+    pub async fn run(
+        config: &Arc<Config>,
+        shutdown: Arc<AtomicBool>,
+        mut shutdown_rx: Receiver<()>,
+    ) -> Result<()> {
         let interval_in_seconds = 1 * 60; // TODO make this longer
         let mut interval = time::interval(Duration::from_secs(interval_in_seconds));
 
@@ -34,8 +39,7 @@ impl PricingProducer {
         //         Some(2.0),
         //     );
         // }
-
-        loop {
+        while !shutdown.load(Ordering::Acquire) {
             info!("Starting PricingProducer run");
             let start = Instant::now();
 
@@ -49,8 +53,10 @@ impl PricingProducer {
 
                 let mut oikotie_client = Oikotie::new().await;
 
-                let apartments: Vec<InsertableApartment> =
-                    oikotie_client.get_apartments(&watchlist).await.unwrap();
+                let apartments: Vec<InsertableApartment> = oikotie_client
+                    .get_apartments(&watchlist)
+                    .await
+                    .unwrap_or_default();
 
                 process_apartment_calculations(&config, apartments, oikotie_client).await?;
 
@@ -63,7 +69,13 @@ impl PricingProducer {
             let duration = start.elapsed();
             info!("Finished PricingProducer run in {:?}", duration);
 
-            interval.tick().await;
+            tokio::select! {
+               _ = interval.tick() => {}
+               _ = shutdown_rx.recv() => {
+                   break
+               }
+            }
         }
+        Ok(())
     }
 }
