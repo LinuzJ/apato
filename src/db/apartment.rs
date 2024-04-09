@@ -4,7 +4,6 @@ use super::{
     establish_connection,
     schema::apartments,
     schema::apartments::dsl::*,
-    schema::watchlists,
     watchlist::{check_chat, get_watchlist},
 };
 use crate::{
@@ -12,7 +11,7 @@ use crate::{
     models::{apartment::Apartment, apartment::InsertableApartment, watchlist::Watchlist},
 };
 use anyhow::anyhow;
-use chrono::{DateTime, NaiveDateTime};
+use chrono::NaiveDateTime;
 use diesel::{prelude::*, result::Error};
 
 pub fn insert(config: &Arc<Config>, apartment: InsertableApartment) {
@@ -83,14 +82,30 @@ pub fn get_new_for_watchlist(
     watchlist: Watchlist,
     interval_start_time: NaiveDateTime,
 ) -> Result<Vec<Apartment>, anyhow::Error> {
-    let con = &mut establish_connection(config);
+    let conn = &mut establish_connection(config);
 
     let valid_apartments: Result<Vec<Apartment>, Error> = apartments::table
         .filter(apartments::watchlist_id.eq(watchlist.id))
         .filter(apartments::estimated_yield.gt(watchlist.goal_yield.unwrap()))
         .filter(apartments::created_at.gt(interval_start_time))
         .select(Apartment::as_select())
-        .load(con);
+        .load(conn);
+
+    return Ok(valid_apartments?);
+}
+
+pub fn get_apartments_within_period(
+    config: &Arc<Config>,
+    wanted_card_id: String,
+    interval_start_time: NaiveDateTime,
+) -> Result<Vec<Apartment>, anyhow::Error> {
+    let conn = &mut establish_connection(config);
+
+    let valid_apartments: Result<Vec<Apartment>, Error> = apartments::table
+        .filter(apartments::card_id.eq(Some(wanted_card_id)))
+        .filter(apartments::created_at.gt(interval_start_time))
+        .select(Apartment::as_select())
+        .load(conn);
 
     return Ok(valid_apartments?);
 }

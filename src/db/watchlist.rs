@@ -91,7 +91,6 @@ pub fn get_all(config: &Arc<Config>) -> Vec<Watchlist> {
 
     match all_watchlists {
         Ok(w) => {
-            println!("Watchlists: {:?}", w);
             return w;
         }
         Err(e) => {
@@ -106,6 +105,23 @@ pub fn get_for_chat(config: &Arc<Config>, id_: i64) -> Vec<Watchlist> {
 
     let r: Vec<Watchlist> = watchlists
         .filter(chat_id.eq(id_))
+        .select(Watchlist::as_select())
+        .load(connection)
+        .expect("Error loading watchlists for chat}");
+
+    r
+}
+
+pub fn get_for_chat_and_location(
+    config: &Arc<Config>,
+    id_: i64,
+    location: &String,
+) -> Vec<Watchlist> {
+    let connection = &mut establish_connection(config);
+
+    let r: Vec<Watchlist> = watchlists
+        .filter(chat_id.eq(id_))
+        .filter(location_name.eq(location))
         .select(Watchlist::as_select())
         .load(connection)
         .expect("Error loading watchlists for chat}");

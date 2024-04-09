@@ -39,12 +39,22 @@ impl Producer {
 
                 let mut oikotie_client = Oikotie::new().await;
 
+                let now = Instant::now();
                 let apartments: Vec<InsertableApartment> = oikotie_client
-                    .get_apartments(&watchlist)
+                    .get_apartments(config.clone(), &watchlist)
                     .await
                     .unwrap_or_default();
 
+                let duration_process = now.elapsed();
+                info!("OIKOTIE PROCESS TAKES {:?}", duration_process);
+
+                let now_ = Instant::now();
                 process_apartment_calculations(&config, apartments, oikotie_client).await?;
+                let duration_process_ = now_.elapsed();
+                info!(
+                    "APARTMENT CALCULATION PROCESS TAKES {:?}",
+                    duration_process_
+                );
 
                 info!(
                     "Finished price calculations for watchlist_id: {:?}",

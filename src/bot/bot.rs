@@ -134,7 +134,8 @@ pub async fn handle_command(
                 }
 
                 // Check if watchlist for this place already exists for this chat
-                let existing = db::watchlist::get_for_chat(&config, chat_id);
+                let existing =
+                    db::watchlist::get_for_chat_and_location(&config, chat_id, &args.location);
 
                 if existing.len() > 0 {
                     tg.send_message(

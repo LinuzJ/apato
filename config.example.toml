@@ -2,6 +2,8 @@ db_path = "postgresql://apato:apato@localhost:5432/postgres"
 telegram_bot_token = "xxx"
 consumer_timeout_seconds = 60
 producer_timeout_seconds = 60
+
+# Calculation assumptions
 loan_duration_years = 25
 down_payment_percentage = 20
 avg_vacant_month_per_year = 1

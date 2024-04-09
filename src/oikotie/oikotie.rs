@@ -1,3 +1,8 @@
+use std::ops::Sub;
+use std::sync::Arc;
+
+use crate::config::Config;
+use crate::db::apartment::get_apartments_within_period;
 use crate::models::apartment::InsertableApartment;
 use crate::models::watchlist::Watchlist;
 use crate::oikotie::helpers;
@@ -5,6 +10,8 @@ use crate::oikotie::tokens;
 
 use anyhow::anyhow;
 use anyhow::{Error, Result};
+use chrono::Duration;
+use chrono::Utc;
 use helpers::create_location_string;
 use log::error;
 use reqwest::header::{HeaderMap, HeaderValue};
@@ -98,6 +105,11 @@ struct OitkotieCardApiResponse {
     status: i32,
 }
 
+pub struct RentalData {
+    pub rent: i32,
+    pub size: f32,
+}
+
 // Custom deserialization for price field as it can be int or String
 fn price_int_or_string<'de, D: Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
     Ok(match Value::deserialize(deserializer)? {
@@ -173,6 +185,7 @@ impl Oikotie {
     */
     pub async fn get_apartments(
         &mut self,
+        config: Arc<Config>,
         watchlist: &Watchlist,
     ) -> Option<Vec<InsertableApartment>> {
         if self.tokens.is_none() {
@@ -199,15 +212,19 @@ impl Oikotie {
         let mut apartments: Vec<InsertableApartment> = Vec::new();
 
         while let Some(card) = cards_iter.next() {
-            let apartment: InsertableApartment = card_into_complete_apartment(
-                &self.tokens.as_ref().unwrap(),
-                card,
-                location,
-                Some(watchlist.id),
-                is_handling_rent,
-            )
-            .await;
-            apartments.push(apartment);
+            let has_been_updated_recently = has_been_updated_recently(config.clone(), card);
+
+            if !has_been_updated_recently {
+                let apartment: InsertableApartment = card_into_complete_apartment(
+                    &self.tokens.as_ref().unwrap(),
+                    card,
+                    location,
+                    Some(watchlist.id),
+                    is_handling_rent,
+                )
+                .await;
+                apartments.push(apartment);
+            }
         }
 
         return Some(apartments);
@@ -216,10 +233,7 @@ impl Oikotie {
     /*
        Fecthes all rental apartments for a certain location
     */
-    pub async fn get_rental_apartments(
-        &mut self,
-        location: &Location,
-    ) -> Option<Vec<InsertableApartment>> {
+    pub async fn get_rental_data(&mut self, location: &Location) -> Result<Vec<RentalData>> {
         if self.tokens.is_none() {
             self.tokens = get_tokens().await;
         }
@@ -232,30 +246,31 @@ impl Oikotie {
             name: location.name.clone(),
         };
 
-        let cards_response: Result<OitkotieCardsApiResponse, reqwest::Error> =
-            fetch_apartments(&self.tokens.as_ref().unwrap(), location.clone(), true).await;
+        let cards_response: Result<OitkotieCardsApiResponse, reqwest::Error> = fetch_apartments(
+            &self.tokens.as_ref().unwrap(),
+            location.clone(),
+            is_handling_rent,
+        )
+        .await;
 
         let cards = match cards_response {
             Ok(c) => c.cards,
-            Err(_e) => return None,
+            Err(_e) => return Err(anyhow!("Error while fetching cards")),
         };
 
         let mut cards_iter: std::slice::Iter<'_, Card> = cards.iter();
-        let mut apartments: Vec<InsertableApartment> = Vec::new();
+        let mut data: Vec<RentalData> = Vec::new();
 
         while let Some(card) = cards_iter.next() {
-            let apartment = card_into_complete_apartment(
-                &self.tokens.as_ref().unwrap(),
-                card,
-                &location,
-                None,
-                is_handling_rent,
-            )
-            .await;
-            apartments.push(apartment);
+            let rent = get_rent_regex(card.price.clone());
+            let rent_data = RentalData {
+                rent,
+                size: card.size,
+            };
+            data.push(rent_data);
         }
 
-        return Some(apartments);
+        return Ok(data);
     }
 
     /*
@@ -270,14 +285,15 @@ impl Oikotie {
             level: apartment.location_level.unwrap(),
             name: apartment.location_name.clone().unwrap(),
         };
-        let rental_apartments = self.get_rental_apartments(location).await;
+        let rental_apartments_nearby = self.get_rental_data(location).await;
+        let size = apartment.size.unwrap_or_default();
 
-        match rental_apartments {
-            Some(apartments_with_rent) => {
-                let rent: i32 = estimated_rent(apartment, apartments_with_rent);
-                return Ok(rent);
-            }
-            None => panic!("Error while calculating rent"),
+        match rental_apartments_nearby {
+            Ok(rental_data) => Ok(estimated_rent(size as f32, rental_data)),
+            Err(e) => Err(anyhow!(
+                "PRODUCER ERROR while calculating rent: {}",
+                e.to_string()
+            )),
         }
     }
 }
@@ -411,26 +427,6 @@ async fn card_into_complete_apartment(
     optional_watchlist_id: Option<i32>,
     is_handling_rent: bool,
 ) -> InsertableApartment {
-    if is_handling_rent {
-        // Because rent is in weird string format -> regex match to i32
-        let rent = get_rent_regex(card.price.clone());
-
-        return InsertableApartment {
-            card_id: Some(card.id.to_string()),
-            location_id: Some(location.id),
-            location_level: Some(location.level),
-            location_name: Some(location.name.clone()),
-            size: Some(card.size as f64),
-            rooms: Some(card.rooms as i32),
-            price: Some(0),
-            additional_costs: Some(0),
-            rent: Some(rent),
-            estimated_yield: Some(0.0),
-            url: Some(card.url.clone()),
-            watchlist_id: -1,
-        };
-    }
-
     // TODO FIX THIS TO HANDLE 5.0 API
     // Fetch card data that includes total price information
     let card_data: OitkotieCardApiResponse = match fetch_card(tokens, card.id.to_string()).await {
@@ -463,4 +459,21 @@ async fn card_into_complete_apartment(
         url: Some(card.url.clone()),
         watchlist_id: watchlist_id,
     }
+}
+
+fn has_been_updated_recently(config: Arc<Config>, card: &Card) -> bool {
+    let cooldown_seconds = 2 * 24 * 60 * 60; // Two days
+    let now = Utc::now().naive_local();
+    let cooldown_period = now.sub(Duration::seconds(cooldown_seconds));
+
+    let apartments =
+        match get_apartments_within_period(&config, card.id.to_string(), cooldown_period) {
+            Ok(aps) => aps,
+            Err(e) => {
+                error!("Error while querying apartmetns withing period");
+                vec![]
+            }
+        };
+
+    return apartments.len() != 0;
 }
