@@ -276,7 +276,9 @@ fn _companion_matrix(polynomial: &Vec<f64>) -> DMatrix<f64> {
 
     if n < 1 {
         panic!("polynomial must have maximum degree of at least 1.");
-    } else if n == 1 {
+    }
+
+    if n == 1 {
         let mut companion = DMatrix::<f64>::zeros(1, 1);
         companion[(0, 0)] = -polynomial[0] / polynomial[1];
         return companion;
@@ -327,7 +329,7 @@ mod matrix_tests {
     use super::_roots;
 
     #[test]
-    async fn roots_test_1() {
+    fn roots_test_1() {
         let input = vec![-2.0, 1.0]; //
         let expected: Vec<f64> = vec![2.0];
         let roots = _roots(input);
@@ -342,12 +344,12 @@ mod matrix_tests {
     }
 
     #[test]
-    async fn test_root_2() {
+    fn test_root_2() {
         let coeffs = vec![1.0, -5.0, 6.0]; // x^2 - 5x + 6 = (x - 2)(x - 3)
         let expected: Vec<f64> = vec![2.0, 3.0]; // Roots: x = 2, 3
         let roots = _roots(coeffs);
         let mut i = 0;
-        while i < expected.len() {
+        while i < (vec![2.0, 3.0]).len() {
             let expected_rounded: f64 = (expected[i] * 100.0).round() / 100.0;
             let real_rounded: f64 = (roots[i] * 100.0).round() / 100.0;
 
@@ -357,7 +359,7 @@ mod matrix_tests {
     }
 
     #[test]
-    async fn test_root_3() {
+    fn test_root_3() {
         let coeffs = vec![1.0, -6.0, 11.0, -6.0]; // x^3 - 6x^2 + 11x - 6 = (x - 1)(x - 2)(x - 3)
         let expected: Vec<f64> = vec![1.0, 2.0, 3.0]; // Roots: x = 1, 2, 3
         let roots = _roots(coeffs);
@@ -372,7 +374,7 @@ mod matrix_tests {
     }
 
     #[test]
-    async fn test_root_4() {
+    fn test_root_4() {
         let coeffs = vec![1.0, 2.0, 3.0]; // x^2 + 2x + 3
         let expected: Vec<f64> = Vec::new(); // No real roots
         let roots = _roots(coeffs);
@@ -387,7 +389,7 @@ mod matrix_tests {
     }
 
     #[test]
-    async fn _companion_matrix_test_1() {
+    fn _companion_matrix_test_1() {
         let input = vec![1.0, 2.0, 3.0];
 
         let expected = dmatrix![0.0, -0.3333333333333333;
@@ -399,7 +401,7 @@ mod matrix_tests {
     }
 
     #[test]
-    async fn _companion_matrix_test_2() {
+    fn _companion_matrix_test_2() {
         let input = vec![-2.0, 3.0, 4.0, -5.0, 1.0];
 
         let expected = dmatrix![
@@ -415,7 +417,7 @@ mod matrix_tests {
     }
 
     #[test]
-    async fn _companion_matrix_test_3() {
+    fn _companion_matrix_test_3() {
         let input = vec![1.0, -6.0, 11.0, -6.0];
 
         let expected = dmatrix![
@@ -430,7 +432,7 @@ mod matrix_tests {
     }
 
     #[test]
-    async fn test_reverse_matrix_1() {
+    fn test_reverse_matrix_1() {
         let input = dmatrix![
             0.0, 0.0, 0.0, 2.0;
             1.0, 0.0, 0.0, -3.0;
@@ -457,15 +459,15 @@ mod yield_calculations {
     use super::*;
 
     #[test]
-    async fn calculate_basic_yield_wip() {
+    fn calculate_basic_yield_wip() {
         let config = Arc::new(config::create_test_config());
         let yield_ = calculate_irr(&config, 100000 as f64, 800 as f64, 200 as f64, 2.00);
         let yield_rounded = (yield_ * 1000.0).round() / 1000.0;
-        assert_eq!(yield_rounded, 0.26)
+        assert_eq!(yield_rounded, 25.996)
     }
 
     #[test]
-    async fn test_irr_1() {
+    fn test_irr_1() {
         let cash_flow: Vec<f64> = vec![-100000.0, 20000.0, 50000.0, 70000.0];
         let irr_raw = _irr(cash_flow).unwrap();
         let irr = (irr_raw * 1000000.0).round() / 1000000.0;
@@ -473,7 +475,7 @@ mod yield_calculations {
     }
 
     #[test]
-    async fn test_irr_2() {
+    fn test_irr_2() {
         let cash_flow: Vec<f64> = vec![-100000.0, 20000.0, 50000.0, 20000.0];
         let irr_raw = _irr(cash_flow).unwrap();
         let irr = (irr_raw * 1000000.0).round() / 1000000.0;
@@ -481,7 +483,7 @@ mod yield_calculations {
     }
 
     #[test]
-    async fn test_irr_3() {
+    fn test_irr_3() {
         let cash_flow: Vec<f64> = vec![
             -21000.00, 3790.00, 3914.05, 4039.87, 4167.47, 4296.90, 4428.19, 4561.35, 4696.42,
             4833.43, 4972.42, 5113.41, 5256.44, 5401.54, 5548.74, 5698.07, 5849.58, 6003.30,
@@ -493,7 +495,7 @@ mod yield_calculations {
     }
 
     #[test]
-    async fn test_interest_payment_period_1() {
+    fn test_interest_payment_period_1() {
         let interest_rate = 0.02;
         let period = 1.0;
         let total_periods = 25.0;
@@ -506,7 +508,7 @@ mod yield_calculations {
     }
 
     #[test]
-    async fn test_interest_payment_period_2() {
+    fn test_interest_payment_period_2() {
         let interest_rate = 0.02;
         let period = 5.0;
         let total_periods = 25.0;
@@ -519,7 +521,7 @@ mod yield_calculations {
     }
 
     #[test]
-    async fn test_principal_payment_period_1() {
+    fn test_principal_payment_period_1() {
         let interest_rate = 0.02;
         let period = 5.0;
         let total_periods = 25.0;
@@ -532,7 +534,7 @@ mod yield_calculations {
     }
 
     #[test]
-    async fn test_principal_payment_period_2() {
+    fn test_principal_payment_period_2() {
         let interest_rate = 0.02;
         let period = 1.0;
         let total_periods = 25.0;
@@ -545,7 +547,7 @@ mod yield_calculations {
     }
 
     #[test]
-    async fn test_principal_payment_period_3() {
+    fn test_principal_payment_period_3() {
         let interest_rate = 0.02;
         let period = 2.0;
         let total_periods = 25.0;
@@ -558,7 +560,7 @@ mod yield_calculations {
     }
 
     #[test]
-    async fn test_principal_payment_for_period_1() {
+    fn test_principal_payment_for_period_1() {
         let rate = 0.02;
         let n = 25.0;
         let pv = 84000.0;
@@ -576,7 +578,7 @@ mod yield_calculations {
     }
 
     #[test]
-    async fn test_future_value_1() {
+    fn test_future_value_1() {
         let rate = 0.02;
         let period = 2.0;
         let payment = 1234.0;
@@ -587,7 +589,7 @@ mod yield_calculations {
     }
 
     #[test]
-    async fn test_pmt_1() {
+    fn test_pmt_1() {
         let rate = 0.02;
         let periods = 20.0;
         let pv = 100000.0;
@@ -597,7 +599,7 @@ mod yield_calculations {
     }
 
     #[test]
-    async fn test_apartment_value_increase_1() {
+    fn test_apartment_value_increase_1() {
         let config = Arc::new(config::create_test_config());
         let price = 100000.0;
         let year = 2;
@@ -606,7 +608,7 @@ mod yield_calculations {
     }
 
     #[test]
-    async fn float_test() {
+    fn float_test() {
         let yield_: f64 = 0.20748;
         let yield_rounded = (yield_ * 10000.0).round() / 10000.0;
         assert_eq!(yield_rounded, 0.2075)

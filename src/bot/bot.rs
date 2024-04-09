@@ -442,7 +442,7 @@ mod tests {
     use super::*;
 
     #[test]
-    async fn test_parse_subscribe_message_only_watchlist() {
+    fn test_parse_subscribe_message_only_watchlist() {
         let args = parse_subscribe_message("testlocation".to_string()).unwrap();
         assert_eq!(
             args.0,
@@ -455,7 +455,7 @@ mod tests {
     }
 
     #[test]
-    async fn test_parse_subscribe_message_without_declarations() {
+    fn test_parse_subscribe_message_without_declarations() {
         let args = parse_subscribe_message("testlocation 60 10".to_string()).unwrap();
         assert_eq!(
             args.0,
@@ -468,7 +468,7 @@ mod tests {
     }
 
     #[test]
-    async fn test_parse_subscribe_message_correct_format() {
+    fn test_parse_subscribe_message_correct_format() {
         let args = parse_subscribe_message("testlocation yield=10 size=50".to_string()).unwrap();
         assert_eq!(
             args.0,

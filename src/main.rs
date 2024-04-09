@@ -1,10 +1,23 @@
+extern crate chrono;
+extern crate diesel;
+extern crate tokio;
+pub mod bot;
+pub mod config;
+mod db;
+mod interest_rate;
+pub mod logger;
+pub mod models;
+mod oikotie;
+pub mod producer;
+
+use bot::bot::ApatoTelegramBot;
+use logger::setup_logger;
+pub use producer::calculate_irr;
+use producer::pricing_producer::PricingProducer;
+
 use std::sync::Arc;
 
 use anyhow::Result;
-use apato::{
-    self, bot::bot::ApatoTelegramBot, config, logger::setup_logger,
-    producer::pricing_producer::PricingProducer,
-};
 use config::Config;
 use log::error;
 
