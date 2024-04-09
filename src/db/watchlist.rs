@@ -4,15 +4,17 @@ use super::{establish_connection, schema::watchlists, schema::watchlists::dsl::*
 use crate::config::Config;
 use crate::models::watchlist::InsertableWatchlist;
 use crate::{models::watchlist::Watchlist, oikotie::oikotie::Location};
+use anyhow::anyhow;
 use diesel::prelude::*;
 use diesel::result::Error;
 use log::error;
 use log::info;
+use teloxide::types::ChatId;
 
 pub fn insert(
     config: &Arc<Config>,
     location: Location,
-    new_chat_id: i32,
+    new_chat_id: i64,
     new_goal_yield: Option<f64>,
 ) {
     let mut connection = establish_connection(config);
@@ -49,6 +51,22 @@ pub fn delete(config: &Arc<Config>, watchlist_id: i32) {
     }
 }
 
+pub fn get_watchlist(config: &Arc<Config>, watchlist_id: i32) -> Result<Watchlist, anyhow::Error> {
+    let conn = &mut establish_connection(config);
+
+    let watchlist_from_db = watchlists::table
+        .filter(watchlists::id.eq(watchlist_id))
+        .select(Watchlist::as_select())
+        .first(conn)
+        .optional();
+
+    return match watchlist_from_db {
+        Ok(Some(w)) => Ok(w),
+        Ok(None) => Err(anyhow!("Error: Did not find a watchlist")),
+        Err(_) => Err(anyhow!("Error: Did not find a watchlist")),
+    };
+}
+
 pub async fn update_yield(
     config: &Arc<Config>,
     target_id: i32,
@@ -83,7 +101,7 @@ pub fn get_all(config: &Arc<Config>) -> Vec<Watchlist> {
     }
 }
 
-pub fn get_for_chat(config: &Arc<Config>, id_: i32) -> Vec<Watchlist> {
+pub fn get_for_chat(config: &Arc<Config>, id_: i64) -> Vec<Watchlist> {
     let connection = &mut establish_connection(config);
 
     let r: Vec<Watchlist> = watchlists
@@ -95,7 +113,7 @@ pub fn get_for_chat(config: &Arc<Config>, id_: i32) -> Vec<Watchlist> {
     r
 }
 
-pub fn check_chat(config: &Arc<Config>, chat_id_to_check: i32, watchlist: i32) -> bool {
+pub fn check_chat(config: &Arc<Config>, chat_id_to_check: i64, watchlist: i32) -> bool {
     let con = &mut establish_connection(config);
 
     let watchlist_from_db: Vec<Watchlist> = watchlists

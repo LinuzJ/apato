@@ -22,23 +22,9 @@ impl Producer {
         shutdown: Arc<AtomicBool>,
         mut shutdown_rx: Receiver<()>,
     ) -> Result<()> {
-        let interval_in_seconds = 1 * 60; // TODO make this longer
-        let mut interval = time::interval(Duration::from_secs(interval_in_seconds));
+        let interval_in_seconds = config.producer_timeout_seconds as u64; // TODO make this longer
+        let interval = Duration::from_secs(interval_in_seconds);
 
-        // let watchlists = watchlist::get_all(&config);
-        // // TEMP Initialization of a watchlist
-        // if watchlists.len() == 0 {
-        //     watchlist::insert(
-        //         &config,
-        //         Location {
-        //             id: 1645,
-        //             level: 4,
-        //             name: String::from("Ullanlinna"),
-        //         },
-        //         1,
-        //         Some(2.0),
-        //     );
-        // }
         while !shutdown.load(Ordering::Acquire) {
             info!("Starting PricingProducer run");
             let start = Instant::now();
@@ -70,7 +56,7 @@ impl Producer {
             info!("Finished PricingProducer run in {:?}", duration);
 
             tokio::select! {
-               _ = interval.tick() => {}
+               _ = tokio::time::sleep(interval) => {}
                _ = shutdown_rx.recv() => {
                    break
                }

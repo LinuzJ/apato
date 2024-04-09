@@ -123,8 +123,7 @@ pub async fn handle_command(
                     .await;
             }
             Command::Sub(args) => {
-                let user = message.from();
-                let chat_id = message.chat.id.0 as i32;
+                let chat_id = message.chat.id.0;
 
                 if args.location == "" && args.size == None && args.yield_goal == None {
                     tg.send_message(
@@ -196,8 +195,7 @@ pub async fn handle_command(
                 }
             }
             Command::Unsub(watchlist_id) => {
-                let user = message.from();
-                let chat_id = message.chat.id.0 as i32;
+                let chat_id = message.chat.id.0;
 
                 // Check if watchlist for this place already exists for this chat
                 let existing: Vec<Watchlist> = db::watchlist::get_for_chat(&config, chat_id)
@@ -216,8 +214,7 @@ pub async fn handle_command(
                 }
             }
             Command::ListWatchlists => {
-                let user = message.from();
-                let chat_id = message.chat.id.0 as i32;
+                let chat_id = message.chat.id.0;
 
                 // Check if watchlist for this place already exists for this chat
                 let existing: Vec<Watchlist> = db::watchlist::get_for_chat(&config, chat_id);
@@ -243,8 +240,7 @@ pub async fn handle_command(
                 }
             }
             Command::GetAll(watchlist_id) => {
-                let user = message.from();
-                let chat_id = message.chat.id.0 as i32;
+                let chat_id = message.chat.id.0;
 
                 let all_apartments_result =
                     db::apartment::get_all_for_watchlist(&config, chat_id, watchlist_id);
@@ -266,8 +262,7 @@ pub async fn handle_command(
                 }
             }
             Command::GetAllValid(watchlist_id) => {
-                let user = message.from();
-                let chat_id = message.chat.id.0 as i32;
+                let chat_id = message.chat.id.0;
                 let apartments_result =
                     db::apartment::get_all_valid_for_watchlist(&config, chat_id, watchlist_id);
                 let mut apartments: Option<Vec<Apartment>> = None;
@@ -406,6 +401,22 @@ async fn send_formatted_message_all(
     }
     Ok(())
 }
+
+pub fn format_apartment_message(apartment: &Apartment) -> String {
+    format!(
+        "Location: {} \n Size: {} \n Price: {} \n Estimated Rent: {} \n Estimated Yield: {} \n Url: {}",
+        apartment
+            .location_name
+            .as_ref()
+            .unwrap_or(&"N/A".to_string()),
+        apartment.size.unwrap_or(0.0),
+        apartment.price.unwrap_or(0),
+        apartment.rent.unwrap_or_default(),
+        apartment.estimated_yield.unwrap_or(0.0),
+        apartment.url.as_ref().unwrap_or(&"N/A".to_string())
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
