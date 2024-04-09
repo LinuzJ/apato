@@ -42,7 +42,7 @@ impl Consumer {
                 let bot = bot.clone();
                 let chat_id = watchlist.chat_id;
 
-                check_watchlist_for_new_apartment(config, watchlist, chat_id, bot).await;
+                check_watchlist_for_new_apartment(config, watchlist, chat_id, bot).await?;
             }
 
             let duration = start.elapsed();

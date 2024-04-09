@@ -1,6 +1,7 @@
 use anyhow::anyhow;
 use anyhow::Result;
 use nalgebra::DMatrix;
+use std::cmp::Ordering;
 use std::{sync::Arc, vec};
 
 use crate::{
@@ -22,6 +23,7 @@ pub async fn process_apartment_calculations(
         */
 
         let estimated_rent = oikotie.get_estimated_rent(&apartment).await?;
+
         apartment.rent = Some(estimated_rent);
 
         let interest_rate_result = interest_rate_client::get_interest_rate(&config).await;
@@ -105,9 +107,14 @@ pub fn calculate_irr(
 
         yearly_cash_flows.push(fcfe);
     }
-    let irr: f64 = _irr(yearly_cash_flows).unwrap_or_default();
+    let irr: f64 = _irr(yearly_cash_flows).unwrap_or_default() * 100.0;
 
-    return irr * 100.0;
+    // Make sure the value is within reasonable limits
+    if irr > 50.0 || irr < -50.0 {
+        return 0.0;
+    }
+
+    irr
 }
 
 fn get_rent(config: &Arc<Config>, year: u32, rent: f64) -> f64 {
@@ -211,7 +218,7 @@ fn _irr(cash_flow: Vec<f64>) -> Option<f64> {
     // Arguments:
     // cash_flow -- Vector with yearly cash-flow, including the year 0 investment.
 
-    let all_roots = _roots(cash_flow);
+    let all_roots = get_roots(cash_flow);
     let mut potential_roots: Vec<f64> = vec![];
 
     for root in all_roots {
@@ -243,63 +250,65 @@ fn _irr(cash_flow: Vec<f64>) -> Option<f64> {
 // https://web.mit.edu/18.06/www/Spring17/Eigenvalue-Polynomials.pdf
 // Find the roots of the polynomial given.
 // Roots are the eigenvalues of the companion matrix of the polynomial.
-fn _roots(coeffs: Vec<f64>) -> Vec<f64> {
+fn get_roots(coeffs: Vec<f64>) -> Vec<f64> {
     let n = coeffs.len() - 1;
 
-    if n < 1 {
-        return vec![];
-    } else if n == 1 {
-        return vec![-coeffs[0] / coeffs[1]];
-    }
+    match n.cmp(&1) {
+        Ordering::Less => return vec![],
+        Ordering::Equal => return vec![-coeffs[0] / coeffs[1]],
+        Ordering::Greater => {
+            let mut companion_matrix = companion_matrix(&coeffs);
+            // Reverse matrix to minimize error of eigenvalue roots
+            companion_matrix = reverse_matrix(&companion_matrix);
+            let eigenvalues_complx = companion_matrix.complex_eigenvalues();
+            let eigenvalues = eigenvalues_complx.data.as_vec();
 
-    let mut _companion_matrix = _companion_matrix(&coeffs);
-    // Reverse matrix to minimize error of eigenvalue roots
-    _companion_matrix = _reverse_matrix(&_companion_matrix);
-    let eigenvalues_complx = _companion_matrix.complex_eigenvalues();
-    let eigenvalues = eigenvalues_complx.data.as_vec();
+            let mut real_roots: Vec<f64> = vec![];
 
-    let mut real_roots: Vec<f64> = vec![];
+            for r in eigenvalues {
+                if r.im == 0.0 {
+                    real_roots.push(r.re);
+                }
+            }
 
-    for r in eigenvalues {
-        if r.im == 0.0 {
-            real_roots.push(r.re);
+            let roots = _map_domain(&real_roots, (-1.0, 1.0), (-1.0, 1.0));
+            return roots;
         }
     }
-
-    let roots = _map_domain(&real_roots, (-1.0, 1.0), (-1.0, 1.0));
-    return roots;
 }
 
 // Generate the companion matrix of the polynomial given
-fn _companion_matrix(polynomial: &Vec<f64>) -> DMatrix<f64> {
+fn companion_matrix(polynomial: &Vec<f64>) -> DMatrix<f64> {
     let n = polynomial.len() - 1;
 
-    if n < 1 {
-        panic!("polynomial must have maximum degree of at least 1.");
+    match n.cmp(&1) {
+        Ordering::Less => {
+            panic!("polynomial must have maximum degree of at least 1.");
+        }
+        Ordering::Equal => {
+            let mut companion = DMatrix::<f64>::zeros(1, 1);
+            companion[(0, 0)] = -polynomial[0] / polynomial[1];
+            return companion;
+        }
+        Ordering::Greater => {
+            let mut companion = DMatrix::<f64>::zeros(n, n);
+
+            // Set the diagonal flags for which poly degree
+            for i in 0..(n - 1) {
+                companion[(i + 1, i)] = 1.0;
+            }
+
+            // Set the coeff of the polynomial in the last column
+            for i in 0..n {
+                companion[(i, n - 1)] = -polynomial[i] / polynomial[n];
+            }
+
+            return companion;
+        }
     }
-
-    if n == 1 {
-        let mut companion = DMatrix::<f64>::zeros(1, 1);
-        companion[(0, 0)] = -polynomial[0] / polynomial[1];
-        return companion;
-    }
-
-    let mut companion = DMatrix::<f64>::zeros(n, n);
-
-    // Set the diagonal flags for which poly degree
-    for i in 0..(n - 1) {
-        companion[(i + 1, i)] = 1.0;
-    }
-
-    // Set the coeff of the polynomial in the last column
-    for i in 0..n {
-        companion[(i, n - 1)] = -polynomial[i] / polynomial[n];
-    }
-
-    companion
 }
 
-fn _reverse_matrix(matrix: &DMatrix<f64>) -> DMatrix<f64> {
+fn reverse_matrix(matrix: &DMatrix<f64>) -> DMatrix<f64> {
     let mut reversed = DMatrix::<f64>::zeros(matrix.nrows(), matrix.ncols());
 
     for i in 0..matrix.nrows() {
@@ -324,15 +333,15 @@ fn _map_domain(x: &Vec<f64>, _old: (f64, f64), _new: (f64, f64)) -> Vec<f64> {
 mod matrix_tests {
     use nalgebra::dmatrix;
 
-    use crate::producer::calculations::{_companion_matrix, _reverse_matrix};
+    use crate::producer::calculations::{companion_matrix, reverse_matrix};
 
-    use super::_roots;
+    use super::get_roots;
 
     #[test]
     fn roots_test_1() {
         let input = vec![-2.0, 1.0]; //
         let expected: Vec<f64> = vec![2.0];
-        let roots = _roots(input);
+        let roots = get_roots(input);
         let mut i = 0;
         while i < expected.len() {
             let expected_rounded: f64 = (expected[i] * 100.0).round() / 100.0;
@@ -347,7 +356,7 @@ mod matrix_tests {
     fn test_root_2() {
         let coeffs = vec![1.0, -5.0, 6.0]; // x^2 - 5x + 6 = (x - 2)(x - 3)
         let expected: Vec<f64> = vec![2.0, 3.0]; // Roots: x = 2, 3
-        let roots = _roots(coeffs);
+        let roots = get_roots(coeffs);
         let mut i = 0;
         while i < (vec![2.0, 3.0]).len() {
             let expected_rounded: f64 = (expected[i] * 100.0).round() / 100.0;
@@ -362,7 +371,7 @@ mod matrix_tests {
     fn test_root_3() {
         let coeffs = vec![1.0, -6.0, 11.0, -6.0]; // x^3 - 6x^2 + 11x - 6 = (x - 1)(x - 2)(x - 3)
         let expected: Vec<f64> = vec![1.0, 2.0, 3.0]; // Roots: x = 1, 2, 3
-        let roots = _roots(coeffs);
+        let roots = get_roots(coeffs);
         let mut i = 0;
         while i < expected.len() {
             let expected_rounded: f64 = (expected[i] * 100.0).round() / 100.0;
@@ -377,7 +386,7 @@ mod matrix_tests {
     fn test_root_4() {
         let coeffs = vec![1.0, 2.0, 3.0]; // x^2 + 2x + 3
         let expected: Vec<f64> = Vec::new(); // No real roots
-        let roots = _roots(coeffs);
+        let roots = get_roots(coeffs);
         let mut i = 0;
         while i < expected.len() {
             let expected_rounded: f64 = (expected[i] * 100.0).round() / 100.0;
@@ -395,7 +404,7 @@ mod matrix_tests {
         let expected = dmatrix![0.0, -0.3333333333333333;
                                 1.0,  -0.6666666666666666;];
 
-        let matrix = _companion_matrix(&input);
+        let matrix = companion_matrix(&input);
 
         assert_eq!(matrix, expected)
     }
@@ -411,7 +420,7 @@ mod matrix_tests {
             0.0, 0.0, 1.0, 5.0;
         ];
 
-        let matrix = _companion_matrix(&input);
+        let matrix = companion_matrix(&input);
 
         assert_eq!(matrix, expected)
     }
@@ -426,7 +435,7 @@ mod matrix_tests {
             0.0, 1.0, 1.8333333333333333;
         ];
 
-        let matrix = _companion_matrix(&input);
+        let matrix = companion_matrix(&input);
 
         assert_eq!(matrix, expected)
     }
@@ -445,7 +454,7 @@ mod matrix_tests {
             -3.0, 0.0, 0.0, 1.0;
             2.0, 0.0, 0.0, 0.0;
         ];
-        let matrix = _reverse_matrix(&input);
+        let matrix = reverse_matrix(&input);
 
         assert_eq!(matrix, expected)
     }

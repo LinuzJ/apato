@@ -192,8 +192,6 @@ impl Oikotie {
             self.tokens = get_tokens().await;
         }
 
-        let is_handling_rent = false;
-
         let location: &Location = &Location {
             id: watchlist.id,
             level: watchlist.location_level,
@@ -220,7 +218,6 @@ impl Oikotie {
                     card,
                     location,
                     Some(watchlist.id),
-                    is_handling_rent,
                 )
                 .await;
                 apartments.push(apartment);
@@ -425,7 +422,6 @@ async fn card_into_complete_apartment(
     card: &Card,
     location: &Location,
     optional_watchlist_id: Option<i32>,
-    is_handling_rent: bool,
 ) -> InsertableApartment {
     // TODO FIX THIS TO HANDLE 5.0 API
     // Fetch card data that includes total price information

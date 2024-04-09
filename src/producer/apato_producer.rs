@@ -51,6 +51,7 @@ impl Producer {
                 let now_ = Instant::now();
                 process_apartment_calculations(&config, apartments, oikotie_client).await?;
                 let duration_process_ = now_.elapsed();
+
                 info!(
                     "APARTMENT CALCULATION PROCESS TAKES {:?}",
                     duration_process_
