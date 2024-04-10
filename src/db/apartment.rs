@@ -70,7 +70,7 @@ pub fn get_all_valid_for_watchlist(
     //         .load(con)?;
     let valid_apartments: Result<Vec<Apartment>, Error> = apartments::table
         .filter(apartments::watchlist_id.eq(target_watchlist.id))
-        .filter(apartments::estimated_yield.gt(target_watchlist.goal_yield.unwrap()))
+        .filter(apartments::estimated_yield.gt(target_watchlist.target_yield.unwrap()))
         .select(Apartment::as_select())
         .load(con);
 
@@ -86,7 +86,7 @@ pub fn get_new_for_watchlist(
 
     let valid_apartments: Result<Vec<Apartment>, Error> = apartments::table
         .filter(apartments::watchlist_id.eq(watchlist.id))
-        .filter(apartments::estimated_yield.gt(watchlist.goal_yield.unwrap()))
+        .filter(apartments::estimated_yield.gt(watchlist.target_yield.unwrap()))
         .filter(apartments::created_at.gt(interval_start_time))
         .select(Apartment::as_select())
         .load(conn);

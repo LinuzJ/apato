@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::{establish_connection, schema::watchlists, schema::watchlists::dsl::*};
 use crate::config::Config;
-use crate::models::watchlist::InsertableWatchlist;
+use crate::models::watchlist::{InsertableWatchlist, SizeTarget};
 use crate::{models::watchlist::Watchlist, oikotie::oikotie::Location};
 use anyhow::anyhow;
 use diesel::prelude::*;
@@ -10,21 +10,34 @@ use diesel::prelude::*;
 use log::error;
 use log::info;
 
-
 pub fn insert(
     config: &Arc<Config>,
     location: Location,
     new_chat_id: i64,
-    new_goal_yield: Option<f64>,
+    new_target_yield: Option<f64>,
+    target_size: Option<SizeTarget>,
 ) {
     let mut connection = establish_connection(config);
+
+    let min_size = None;
+    let max_size = None;
+
+    match target_size {
+        Some(s) => {
+            min_size = Some(s.min);
+            max_size = Some(s.max);
+        }
+        None => {}
+    }
 
     let watchlist: InsertableWatchlist = InsertableWatchlist {
         location_id: location.id,
         location_level: location.level,
         location_name: location.name,
         chat_id: new_chat_id,
-        goal_yield: new_goal_yield,
+        target_yield: new_target_yield,
+        target_size_min: min_size,
+        target_size_max: max_size,
     };
 
     match diesel::insert_into(watchlists::table)
@@ -76,7 +89,7 @@ pub async fn update_yield(
 
     diesel::update(watchlists)
         .filter(id.eq(target_id))
-        .set(goal_yield.eq(new_yield))
+        .set(target_yield.eq(new_yield))
         .execute(connection)?;
 
     Ok(())
@@ -90,9 +103,7 @@ pub fn get_all(config: &Arc<Config>) -> Vec<Watchlist> {
         .get_results(connection);
 
     match all_watchlists {
-        Ok(w) => {
-            w
-        }
+        Ok(w) => w,
         Err(e) => {
             println!("Error: {:?}", e);
             Vec::new()

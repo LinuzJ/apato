@@ -27,9 +27,11 @@ diesel::table! {
         location_level -> Int4,
         location_name -> Text,
         chat_id -> Int8,
-        goal_yield -> Nullable<Float8>,
+        target_yield -> Nullable<Float8>,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
+        target_size_min -> Nullable<Int4>,
+        target_size_max -> Nullable<Int4>,
     }
 }
 

@@ -8,7 +8,9 @@ pub struct InsertableWatchlist {
     pub location_level: i32,
     pub location_name: String,
     pub chat_id: i64,
-    pub goal_yield: Option<f64>,
+    pub target_yield: Option<f64>,
+    pub target_size_min: Option<i32>,
+    pub target_size_max: Option<i32>,
 }
 
 #[derive(Debug, Queryable, Selectable, Identifiable, Clone)]
@@ -20,7 +22,14 @@ pub struct Watchlist {
     pub location_level: i32,
     pub location_name: String,
     pub chat_id: i64,
-    pub goal_yield: Option<f64>,
+    pub target_yield: Option<f64>,
+    pub target_size_min: Option<i32>,
+    pub target_size_max: Option<i32>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+}
+
+pub struct SizeTarget {
+    pub min: i32,
+    pub max: i32,
 }

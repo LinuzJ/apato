@@ -1,7 +1,10 @@
 use crate::{
     config::Config,
     db,
-    models::{apartment::Apartment, watchlist::Watchlist},
+    models::{
+        apartment::Apartment,
+        watchlist::{SizeTarget, Watchlist},
+    },
     oikotie::oikotie::{Location, Oikotie},
 };
 use anyhow::Result;
@@ -51,7 +54,7 @@ pub enum Command {
     GetAll(i32),
 
     #[command(
-        description = "Get all apartments/houses in watchlist that are above or equal to the yield goal",
+        description = "Get all apartments/houses in watchlist that are above or equal to the target yield",
         parse_with = parse_string_to_int_message
     )]
     GetAllValid(i32),
@@ -125,7 +128,7 @@ pub async fn handle_command(
             Command::Sub(args) => {
                 let chat_id = message.chat.id.0;
 
-                if args.location.is_empty() && args.size.is_none() && args.yield_goal.is_none() {
+                if args.location.is_empty() && args.target_yield.is_none() {
                     tg.send_message(
                         message.chat.id,
                         "Please provide the arguments needed. Check /help for guidance.",
@@ -140,14 +143,14 @@ pub async fn handle_command(
                 if !existing.is_empty() {
                     tg.send_message(
                         message.chat.id,
-                        "You already have a watchlist for this location. Updating goal yield...",
+                        "You already have a watchlist for this location. Updating target yield...",
                     )
                     .await?;
 
                     match db::watchlist::update_yield(
                         config,
                         existing[0].id,
-                        args.yield_goal.unwrap().into(),
+                        args.target_yield.unwrap().into(),
                     )
                     .await
                     {
@@ -158,7 +161,6 @@ pub async fn handle_command(
                                 format!("Error while updating yield: {}", e),
                             )
                             .await?;
-                            
                         }
                     };
 
@@ -184,12 +186,21 @@ pub async fn handle_command(
                     }
                 }
 
+                let mut target_size = None;
+                if args.min_size.is_some() && args.max_size.is_some() {
+                    target_size = Some(SizeTarget {
+                        min: args.min_size.unwrap() as i32,
+                        max: args.max_size.unwrap() as i32,
+                    })
+                }
+
                 if let Some(loc) = location {
                     db::watchlist::insert(
                         config,
                         loc,
                         chat_id,
-                        Some(args.yield_goal.unwrap_or(0) as f64),
+                        Some(args.target_yield.unwrap_or(0) as f64),
+                        target_size,
                     );
                     tg.send_message(message.chat.id, "Added to your watchlist!")
                         .await?;
@@ -228,7 +239,7 @@ pub async fn handle_command(
                             index + 1,
                             watchlist.id.clone(),
                             watchlist.location_name.clone(),
-                            watchlist.goal_yield.unwrap()
+                            watchlist.target_yield.unwrap()
                         )
                     })
                     .collect();
@@ -250,11 +261,8 @@ pub async fn handle_command(
                 match all_apartments_result {
                     Ok(aps) => all_apartments = Some(aps),
                     Err(e) => {
-                        tg.send_message(
-                            message.chat.id,
-                            format!("Error while fetching: {}", e),
-                        )
-                        .await?;
+                        tg.send_message(message.chat.id, format!("Error while fetching: {}", e))
+                            .await?;
                     }
                 };
 
@@ -271,11 +279,8 @@ pub async fn handle_command(
                 match apartments_result {
                     Ok(aps) => apartments = Some(aps),
                     Err(e) => {
-                        tg.send_message(
-                            message.chat.id,
-                            format!("Error while fetching: {}", e),
-                        )
-                        .await?;
+                        tg.send_message(message.chat.id, format!("Error while fetching: {}", e))
+                            .await?;
                     }
                 };
 
@@ -299,7 +304,8 @@ pub async fn handle_command(
 fn parse_subscribe_message(input: String) -> Result<(SubscriptionArgs,), ParseError> {
     lazy_static! {
         static ref LOCATION_STRING_REGEX: Regex = Regex::new(r"^[^\s]+").unwrap();
-        static ref SIZE_REGEX: Regex = Regex::new(r"\bsize=(\d+)\b").unwrap();
+        static ref MIN_SIZE_REGEX: Regex = Regex::new(r"\bmin_size=(\d+)\b").unwrap();
+        static ref MAX_SIZE_REGEX: Regex = Regex::new(r"\bmax_size=(\d+)\b").unwrap();
         static ref YIELD_REGEX: Regex = Regex::new(r"\byield=(\d+)\b").unwrap();
     }
 
@@ -309,20 +315,26 @@ fn parse_subscribe_message(input: String) -> Result<(SubscriptionArgs,), ParseEr
         .as_str()
         .to_string();
 
-    let size: Option<u32> = SIZE_REGEX
+    let min_size: Option<u32> = MIN_SIZE_REGEX
         .captures(&input)
         .and_then(|caps| caps.get(1))
         .and_then(|m| m.as_str().parse().ok());
 
-    let yield_goal: Option<u32> = YIELD_REGEX
+    let max_size: Option<u32> = MAX_SIZE_REGEX
+        .captures(&input)
+        .and_then(|caps| caps.get(1))
+        .and_then(|m| m.as_str().parse().ok());
+
+    let target_yield: Option<u32> = YIELD_REGEX
         .captures(&input)
         .and_then(|caps| caps.get(1))
         .and_then(|m| m.as_str().parse().ok());
 
     let args = SubscriptionArgs {
         location,
-        size,
-        yield_goal,
+        target_yield,
+        min_size,
+        max_size,
     };
 
     Ok((args,))
@@ -429,8 +441,9 @@ mod tests {
             args.0,
             SubscriptionArgs {
                 location: "testlocation".to_string(),
-                size: None,
-                yield_goal: None
+                target_yield: None,
+                min_size: None,
+                max_size: None
             },
         )
     }
@@ -442,21 +455,25 @@ mod tests {
             args.0,
             SubscriptionArgs {
                 location: "testlocation".to_string(),
-                size: None,
-                yield_goal: None
+                target_yield: None,
+                min_size: None,
+                max_size: None
             },
         );
     }
 
     #[test]
     fn test_parse_subscribe_message_correct_format() {
-        let args = parse_subscribe_message("testlocation yield=10 size=50".to_string()).unwrap();
+        let args =
+            parse_subscribe_message("testlocation yield=10 min_size=50 max_size=65".to_string())
+                .unwrap();
         assert_eq!(
             args.0,
             SubscriptionArgs {
                 location: "testlocation".to_string(),
-                size: Some(50),
-                yield_goal: Some(10)
+                target_yield: Some(10),
+                min_size: Some(50),
+                max_size: Some(65)
             },
         )
     }
