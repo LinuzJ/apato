@@ -69,8 +69,16 @@ impl Producer {
                             // Insert into apartment table
                             db::apartment::insert(config, ap.clone());
 
-                            // Add to watchlist index
-                            db::watchlist_apartment_index::insert(config, watchlist.id, ap.card_id);
+                            // Add to watchlist index if over target yield
+                            if ap.estimated_yield.unwrap_or_default()
+                                > watchlist.target_yield.unwrap_or_default()
+                            {
+                                db::watchlist_apartment_index::insert(
+                                    config,
+                                    watchlist.id,
+                                    ap.card_id,
+                                );
+                            }
                         }
                         Err(e) => {
                             error!("Producer Error: While processing calculations {}", e);

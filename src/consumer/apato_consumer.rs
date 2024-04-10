@@ -40,7 +40,7 @@ impl Consumer {
                 let bot = bot.clone();
                 let chat_id = watchlist.chat_id;
 
-                check_watchlist_for_new_apartment(config, watchlist, chat_id, bot).await?;
+                check__for_new_apartments(config, watchlist, chat_id, bot).await?;
             }
 
             let duration = start.elapsed();
@@ -57,7 +57,7 @@ impl Consumer {
     }
 }
 
-async fn check_watchlist_for_new_apartment(
+async fn check__for_new_apartments(
     config: &Arc<Config>,
     watchlist: Watchlist,
     chat_id: i64,
@@ -111,6 +111,10 @@ async fn check_watchlist_for_new_apartment(
             for message_to_send in formatted {
                 bot.send_message(ChatId(chat_id), message_to_send).await?;
             }
+
+            for ap in aps {
+                db::watchlist_apartment_index::set_to_read(config, &watchlist, ap.card_id);
+            }
         }
         std::cmp::Ordering::Equal => {
             let watchlist_clone = watchlist.clone();
@@ -128,6 +132,12 @@ async fn check_watchlist_for_new_apartment(
             if let Ok(unsent_ap) = ap {
                 let formatted = format_apartment_message(&unsent_ap[0]);
                 bot.send_message(ChatId(chat_id), formatted).await?;
+
+                db::watchlist_apartment_index::set_to_read(
+                    config,
+                    &watchlist,
+                    unsent_ap[0].card_id,
+                );
             }
         }
         std::cmp::Ordering::Less => {

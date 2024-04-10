@@ -66,3 +66,18 @@ pub fn get_unsent_apartments(
 
     valid_connectors
 }
+
+pub fn set_to_read(config: &Arc<Config>, watchlist: &Watchlist, target_card_id: i32) {
+    let conn = &mut establish_connection(config);
+
+    match diesel::update(watchlist_apartment_index)
+        .set(has_been_sent.eq(true))
+        .execute(conn)
+    {
+        Ok(n) => info!(
+            "Consumer set watchlist {:?} and card_id {} to has_been_sent = {}",
+            watchlist.id, target_card_id, true
+        ),
+        Err(e) => error!("Error: {:?}", e),
+    }
+}
