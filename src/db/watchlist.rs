@@ -15,20 +15,9 @@ pub fn insert(
     location: Location,
     new_chat_id: i64,
     new_target_yield: Option<f64>,
-    target_size: Option<SizeTarget>,
+    target_size: SizeTarget,
 ) {
     let mut connection = establish_connection(config);
-
-    let min_size = None;
-    let max_size = None;
-
-    match target_size {
-        Some(s) => {
-            min_size = Some(s.min);
-            max_size = Some(s.max);
-        }
-        None => {}
-    }
 
     let watchlist: InsertableWatchlist = InsertableWatchlist {
         location_id: location.id,
@@ -36,8 +25,8 @@ pub fn insert(
         location_name: location.name,
         chat_id: new_chat_id,
         target_yield: new_target_yield,
-        target_size_min: min_size,
-        target_size_max: max_size,
+        target_size_min: target_size.min,
+        target_size_max: target_size.max,
     };
 
     match diesel::insert_into(watchlists::table)

@@ -73,49 +73,56 @@ async fn check_watchlist_for_new_apartment(
         Ok(v) => v,
         Err(e) => {
             error!("Consumer Error while fetching new targets: {:?}", e);
-            bot.send_message(ChatId(chat_id), format!("{}", e))
-                .await?;
+            bot.send_message(ChatId(chat_id), format!("{}", e)).await?;
             return Ok(());
         }
     };
 
-    if new_targets.len() > 1 {
-        let watchlist_clone = watchlist.clone();
-        bot.send_message(
-            ChatId(chat_id),
-            format!(
-                "Found new apartments for your watchlist {} for {}",
-                watchlist_clone.id, watchlist_clone.location_name
-            ),
-        )
-        .await?;
+    let amount_of_matches = new_targets.len();
 
-        let formatted: Vec<String> = new_targets
-            .iter()
-            .enumerate()
-            .map(|(index, apartment)| {
-                let formatted = format_apartment_message(apartment);
-                format!("{}: \n {}", index, formatted)
-            })
-            .collect();
+    match amount_of_matches.cmp(&1) {
+        std::cmp::Ordering::Greater => {
+            let watchlist_clone = watchlist.clone();
+            bot.send_message(
+                ChatId(chat_id),
+                format!(
+                    "Found new apartments for your watchlist {} for {}",
+                    watchlist_clone.id, watchlist_clone.location_name
+                ),
+            )
+            .await?;
 
-        for message_to_send in formatted {
-            bot.send_message(ChatId(chat_id), message_to_send).await?;
+            let formatted: Vec<String> = new_targets
+                .iter()
+                .enumerate()
+                .map(|(index, apartment)| {
+                    let formatted = format_apartment_message(apartment);
+                    format!("{}: \n {}", index, formatted)
+                })
+                .collect();
+
+            for message_to_send in formatted {
+                bot.send_message(ChatId(chat_id), message_to_send).await?;
+            }
         }
-    } else if new_targets.len() == 1 {
-        let watchlist_clone = watchlist.clone();
-        bot.send_message(
-            ChatId(chat_id),
-            format!(
-                "Found a new apartment for your watchlist {} for {}",
-                watchlist_clone.id, watchlist_clone.location_name
-            ),
-        )
-        .await?;
+        std::cmp::Ordering::Equal => {
+            let watchlist_clone = watchlist.clone();
+            bot.send_message(
+                ChatId(chat_id),
+                format!(
+                    "Found a new apartment for your watchlist {} for {}",
+                    watchlist_clone.id, watchlist_clone.location_name
+                ),
+            )
+            .await?;
 
-        let formatted = format_apartment_message(&new_targets[0]);
+            let formatted = format_apartment_message(&new_targets[0]);
 
-        bot.send_message(ChatId(chat_id), formatted).await?;
+            bot.send_message(ChatId(chat_id), formatted).await?;
+        }
+        std::cmp::Ordering::Less => {
+            info!("Weird things happening in consumer..")
+        }
     }
 
     Ok(())

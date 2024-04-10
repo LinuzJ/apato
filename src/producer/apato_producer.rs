@@ -1,6 +1,9 @@
 use crate::{
-    config::Config, db::watchlist, models::apartment::InsertableApartment,
-    oikotie::oikotie::Oikotie, producer::calculations::process_apartment_calculations,
+    config::Config,
+    db::watchlist,
+    models::{apartment::InsertableApartment, watchlist::SizeTarget},
+    oikotie::oikotie::Oikotie,
+    producer::calculations::process_apartment_calculations,
 };
 use anyhow::Result;
 use log::info;
@@ -12,7 +15,6 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::sync::broadcast::Receiver;
-
 
 pub struct Producer;
 
@@ -39,9 +41,17 @@ impl Producer {
 
                 let mut oikotie_client = Oikotie::new().await;
 
+                let mut target_size = SizeTarget::empty();
+                if let Some(min_size) = watchlist.target_size_min {
+                    target_size.min = Some(min_size as i32)
+                }
+                if let Some(max_size) = watchlist.target_size_max {
+                    target_size.max = Some(max_size as i32)
+                }
+
                 let now = Instant::now();
                 let apartments: Vec<InsertableApartment> = oikotie_client
-                    .get_apartments(config.clone(), &watchlist)
+                    .get_apartments(config.clone(), &watchlist, target_size)
                     .await
                     .unwrap_or_default();
 

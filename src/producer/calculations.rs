@@ -182,7 +182,7 @@ fn interest_payment_for_period(
     // present_value -- the present value, or the total amount of the loan.
     let total_payment = pmt(interest_rate, total_periods, present_value);
     let future_pv = future_value(interest_rate, period - 1.0, total_payment, present_value);
-    
+
     future_pv * interest_rate
 }
 
@@ -271,7 +271,6 @@ fn get_roots(coeffs: Vec<f64>) -> Vec<f64> {
                 }
             }
 
-            
             _map_domain(&real_roots, (-1.0, 1.0), (-1.0, 1.0))
         }
     }

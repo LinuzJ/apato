@@ -4,6 +4,7 @@ use std::sync::Arc;
 use crate::config::Config;
 use crate::db::apartment::get_apartments_within_period;
 use crate::models::apartment::InsertableApartment;
+use crate::models::watchlist::SizeTarget;
 use crate::models::watchlist::Watchlist;
 use crate::oikotie::helpers;
 use crate::oikotie::tokens;
@@ -22,7 +23,7 @@ use serde_json::Value;
 use serde_this_or_that::as_u64;
 use tokens::{get_tokens, OikotieTokens};
 
-use super::helpers::estimated_rent;
+use super::helpers::estimate_rent;
 use super::helpers::get_rent_regex;
 
 #[derive(Debug, Clone)]
@@ -187,6 +188,7 @@ impl Oikotie {
         &mut self,
         config: Arc<Config>,
         watchlist: &Watchlist,
+        size: SizeTarget,
     ) -> Option<Vec<InsertableApartment>> {
         if self.tokens.is_none() {
             self.tokens = get_tokens().await;
@@ -199,7 +201,7 @@ impl Oikotie {
         };
 
         let cards_response: Result<OitkotieCardsApiResponse, reqwest::Error> =
-            fetch_apartments(self.tokens.as_ref().unwrap(), location.clone(), false).await;
+            fetch_apartments(self.tokens.as_ref().unwrap(), location.clone(), size, false).await;
 
         let cards = match cards_response {
             Ok(c) => c.cards,
@@ -230,7 +232,11 @@ impl Oikotie {
     /*
        Fecthes all rental apartments for a certain location
     */
-    pub async fn get_rental_data(&mut self, location: &Location) -> Result<Vec<RentalData>> {
+    pub async fn get_rental_data(
+        &mut self,
+        location: &Location,
+        size_range: SizeTarget,
+    ) -> Result<Vec<RentalData>> {
         if self.tokens.is_none() {
             self.tokens = get_tokens().await;
         }
@@ -246,6 +252,7 @@ impl Oikotie {
         let cards_response: Result<OitkotieCardsApiResponse, reqwest::Error> = fetch_apartments(
             self.tokens.as_ref().unwrap(),
             location.clone(),
+            size_range,
             is_handling_rent,
         )
         .await;
@@ -282,11 +289,16 @@ impl Oikotie {
             level: apartment.location_level.unwrap(),
             name: apartment.location_name.clone().unwrap(),
         };
-        let rental_apartments_nearby = self.get_rental_data(location).await;
         let size = apartment.size.unwrap_or_default();
+        let size_range = SizeTarget {
+            min: Some((size * 0.9) as i32),
+            max: Some((size * 1.1) as i32),
+        };
+
+        let rental_apartments_nearby = self.get_rental_data(location, size_range).await;
 
         match rental_apartments_nearby {
-            Ok(rental_data) => Ok(estimated_rent(size as f32, rental_data)),
+            Ok(rental_data) => Ok(estimate_rent(size as f32, rental_data)),
             Err(e) => Err(anyhow!(
                 "PRODUCER ERROR while calculating rent: {}",
                 e.to_string()
@@ -377,16 +389,28 @@ async fn fetch_card(
 async fn fetch_apartments(
     tokens: &OikotieTokens,
     location: Location,
+    target_size: SizeTarget,
     get_rentals: bool,
 ) -> Result<OitkotieCardsApiResponse, reqwest::Error> {
-    let oikotie_cards_api_url = "https://asunnot.oikotie.fi/api/cards";
-
-    let client: reqwest::Client = reqwest::Client::new();
+    let min_size = target_size.min.unwrap_or_default().to_string();
+    let max_size = target_size.max.unwrap_or_default().to_string();
     let locations: String = create_location_string(location.id, location.level, location.name);
-    let params: Vec<(&str, &str)> = vec![
+
+    let oikotie_cards_api_url = "https://asunnot.oikotie.fi/api/cards";
+    let client: reqwest::Client = reqwest::Client::new();
+
+    let mut params: Vec<(&str, &str)> = vec![
         ("cardType", if get_rentals { "101" } else { "100" }),
         ("locations", &locations),
     ];
+    // Add size requirements to query if given
+    if !min_size.is_empty() {
+        params.push(("size[min]", &min_size));
+    }
+    if !max_size.is_empty() {
+        params.push(("size[max]", &max_size));
+    }
+
     let mut headers: HeaderMap = HeaderMap::new();
 
     match HeaderValue::from_str(&tokens.loaded) {

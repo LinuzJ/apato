@@ -31,7 +31,7 @@ pub fn get_rent_regex(rent_string: String) -> i32 {
     result
 }
 
-pub fn estimated_rent(size: f32, rental_data_nearby: Vec<RentalData>) -> i32 {
+pub fn estimate_rent(size: f32, rental_data_nearby: Vec<RentalData>) -> i32 {
     let size_buffer_percentage = 10.0;
     let similar_size_apartment_rents: Vec<i32> = rental_data_nearby
         .iter()
@@ -81,7 +81,7 @@ fn calculate_median(numbers: &mut Vec<i32>) -> f32 {
     if len % 2 == 0 {
         // If the length is even, take the average of the middle two values
         let mid = len / 2;
-        
+
         (numbers[mid - 1] + numbers[mid]) as f32 / 2.0
     } else {
         // If the length is odd, return the middle value

@@ -186,12 +186,12 @@ pub async fn handle_command(
                     }
                 }
 
-                let mut target_size = None;
-                if args.min_size.is_some() && args.max_size.is_some() {
-                    target_size = Some(SizeTarget {
-                        min: args.min_size.unwrap() as i32,
-                        max: args.max_size.unwrap() as i32,
-                    })
+                let mut target_size = SizeTarget::empty();
+                if let Some(min_size) = args.min_size {
+                    target_size.min = Some(min_size as i32)
+                }
+                if let Some(max_size) = args.max_size {
+                    target_size.max = Some(max_size as i32)
                 }
 
                 if let Some(loc) = location {
@@ -235,11 +235,13 @@ pub async fn handle_command(
                     .enumerate()
                     .map(|(index, watchlist)| {
                         format!(
-                            "{}: Id: {};    Location: {};   Target Yield: {}",
+                            "{}: \n Id: {} Location: {} Target Yield: {} Size: {}:{} \n\n",
                             index + 1,
                             watchlist.id.clone(),
                             watchlist.location_name.clone(),
-                            watchlist.target_yield.unwrap()
+                            watchlist.target_yield.unwrap(),
+                            watchlist.target_size_min.unwrap(),
+                            watchlist.target_size_max.unwrap()
                         )
                     })
                     .collect();
