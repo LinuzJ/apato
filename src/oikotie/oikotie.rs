@@ -1,8 +1,8 @@
-use std::ops::Sub;
 use std::sync::Arc;
 
 use crate::config::Config;
-use crate::db::apartment::get_apartments_within_period;
+use crate::db;
+use crate::db::watchlist_apartment_index::get_watchlist_apartment_connector;
 use crate::models::apartment::InsertableApartment;
 use crate::models::watchlist::SizeTarget;
 use crate::models::watchlist::Watchlist;
@@ -11,8 +11,6 @@ use crate::oikotie::tokens;
 
 use anyhow::anyhow;
 use anyhow::{Error, Result};
-use chrono::Duration;
-use chrono::Utc;
 use helpers::create_location_string;
 use log::error;
 use reqwest::header::{HeaderMap, HeaderValue};
@@ -138,6 +136,14 @@ pub struct Oikotie {
     pub tokens: Option<Box<OikotieTokens>>,
 }
 
+impl Clone for Oikotie {
+    fn clone(&self) -> Self {
+        Oikotie {
+            tokens: self.tokens.clone(),
+        }
+    }
+}
+
 impl Oikotie {
     pub async fn new() -> Oikotie {
         Oikotie {
@@ -208,16 +214,17 @@ impl Oikotie {
             Err(_e) => return None,
         };
 
-        let cards_iter: std::slice::Iter<'_, Card> = cards.iter();
         let mut apartments: Vec<InsertableApartment> = Vec::new();
 
-        for card in cards_iter {
-            let has_been_updated_recently = has_been_updated_recently(config.clone(), card);
+        for card in cards {
+            let in_databse = exists_in_database(config.clone(), &card);
+            // TODO fix when new watchlist with same location misses here. Make sure to add to index even through already in place
+            let has_been_sent = has_been_sent_to_watchlist(config.clone(), &card, watchlist);
 
-            if !has_been_updated_recently {
+            if !in_databse && !has_been_sent {
                 let apartment: InsertableApartment = card_into_complete_apartment(
                     self.tokens.as_ref().unwrap(),
-                    card,
+                    &card,
                     location,
                     Some(watchlist.id),
                 )
@@ -463,7 +470,7 @@ async fn card_into_complete_apartment(
     let watchlist_id = optional_watchlist_id.unwrap_or(-1);
 
     InsertableApartment {
-        card_id: Some(card.id.to_string()),
+        card_id: card.id as i32,
         location_id: Some(location.id),
         location_level: Some(location.level),
         location_name: Some(location.name.clone()),
@@ -478,19 +485,31 @@ async fn card_into_complete_apartment(
     }
 }
 
-fn has_been_updated_recently(config: Arc<Config>, card: &Card) -> bool {
-    let cooldown_seconds = 2 * 24 * 60 * 60; // Two days
-    let now = Utc::now().naive_local();
-    let cooldown_period = now.sub(Duration::seconds(cooldown_seconds));
-
+fn has_been_sent_to_watchlist(config: Arc<Config>, card: &Card, watchlist: &Watchlist) -> bool {
     let apartments =
-        match get_apartments_within_period(&config, card.id.to_string(), cooldown_period) {
+        match get_watchlist_apartment_connector(&config, watchlist, card.id.try_into().unwrap()) {
             Ok(aps) => aps,
             Err(_e) => {
                 error!("Error while querying apartmetns withing period");
                 vec![]
             }
         };
+
+    if apartments.is_empty() {
+        return false;
+    }
+
+    apartments[0].has_been_sent
+}
+
+fn exists_in_database(config: Arc<Config>, card: &Card) -> bool {
+    let apartments = match db::apartment::get_card_id(&config, card.id.try_into().unwrap()) {
+        Ok(aps) => aps,
+        Err(_e) => {
+            error!("Error while querying apartmetns withing period");
+            vec![]
+        }
+    };
 
     !apartments.is_empty()
 }

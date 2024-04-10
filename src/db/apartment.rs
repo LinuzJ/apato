@@ -13,16 +13,17 @@ use crate::{
 use anyhow::anyhow;
 use chrono::NaiveDateTime;
 use diesel::{prelude::*, result::Error};
+use log::{error, info};
 
 pub fn insert(config: &Arc<Config>, apartment: InsertableApartment) {
-    let mut con = establish_connection(config);
+    let mut conn = establish_connection(config);
 
     match diesel::insert_into(apartments::table)
         .values(apartment)
-        .execute(&mut con)
+        .execute(&mut conn)
     {
-        Ok(n) => println!("Inserted {:?} rows into apartments table", n),
-        Err(e) => println!("Error: {:?}", e),
+        Ok(n) => info!("Inserted {:?} rows into apartments table", n),
+        Err(e) => error!("Error: {:?}", e),
     }
 }
 
@@ -31,7 +32,7 @@ pub fn get_all_for_watchlist(
     chat_id: i64,
     watchlist: i32,
 ) -> Result<Vec<Apartment>, anyhow::Error> {
-    let mut con = establish_connection(config);
+    let mut conn = establish_connection(config);
     let correct_chat = check_chat(config, chat_id, watchlist);
     if !correct_chat {
         return Err(anyhow!("Error: Wrong chat"));
@@ -40,7 +41,7 @@ pub fn get_all_for_watchlist(
     let all_apartments: Result<Vec<Apartment>, Error> = apartments::table
         .filter(watchlist_id.eq(watchlist))
         .select(apartments::table::all_columns())
-        .load(&mut con);
+        .load(&mut conn);
 
     Ok(all_apartments?)
 }
@@ -50,7 +51,7 @@ pub fn get_all_valid_for_watchlist(
     chat_id: i64,
     watchlist: i32,
 ) -> Result<Vec<Apartment>, anyhow::Error> {
-    let con = &mut establish_connection(config);
+    let conn = &mut establish_connection(config);
     let correct_chat = check_chat(config, chat_id, watchlist);
 
     if !correct_chat {
@@ -67,12 +68,12 @@ pub fn get_all_valid_for_watchlist(
     // let valid_apartments: Result<Vec<Apartment>, Error> =
     //     Apartment::belonging_to(&watchlist_from_db)
     //         .select(Apartment::as_select())
-    //         .load(con)?;
+    //         .load(conn)?;
     let valid_apartments: Result<Vec<Apartment>, Error> = apartments::table
         .filter(apartments::watchlist_id.eq(target_watchlist.id))
         .filter(apartments::estimated_yield.gt(target_watchlist.target_yield.unwrap()))
         .select(Apartment::as_select())
-        .load(con);
+        .load(conn);
 
     Ok(valid_apartments?)
 }
@@ -96,16 +97,28 @@ pub fn get_new_for_watchlist(
 
 pub fn get_apartments_within_period(
     config: &Arc<Config>,
-    wanted_card_id: String,
+    wanted_card_id: i32,
     interval_start_time: NaiveDateTime,
 ) -> Result<Vec<Apartment>, anyhow::Error> {
     let conn = &mut establish_connection(config);
 
     let valid_apartments: Result<Vec<Apartment>, Error> = apartments::table
-        .filter(apartments::card_id.eq(Some(wanted_card_id)))
+        .filter(apartments::card_id.eq(wanted_card_id))
         .filter(apartments::created_at.gt(interval_start_time))
         .select(Apartment::as_select())
         .load(conn);
 
     Ok(valid_apartments?)
+}
+
+pub fn get_card_id(config: &Arc<Config>, target_card_id: i32) -> Result<Vec<Apartment>, Error> {
+    let conn = &mut establish_connection(config);
+
+    let valid_apartments: Result<Vec<Apartment>, Error> = apartments::table
+        .filter(apartments::card_id.eq(target_card_id))
+        .select(Apartment::as_select())
+        .limit(1)
+        .load(conn);
+
+    valid_apartments
 }

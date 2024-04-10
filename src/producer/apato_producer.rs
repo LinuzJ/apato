@@ -1,12 +1,12 @@
 use crate::{
     config::Config,
-    db::watchlist,
+    db::{self, watchlist},
     models::{apartment::InsertableApartment, watchlist::SizeTarget},
     oikotie::oikotie::Oikotie,
     producer::calculations::process_apartment_calculations,
 };
 use anyhow::Result;
-use log::info;
+use log::{error, info};
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -59,7 +59,24 @@ impl Producer {
                 info!("OIKOTIE PROCESS TAKES {:?}", duration_process);
 
                 let now_ = Instant::now();
-                process_apartment_calculations(config, apartments, oikotie_client).await?;
+                for apartment in apartments {
+                    let oiko_clone = oikotie_client.clone();
+                    let complete_apartment =
+                        process_apartment_calculations(config, apartment, oiko_clone).await;
+
+                    match complete_apartment {
+                        Ok(ap) => {
+                            // Insert into apartment table
+                            db::apartment::insert(config, ap.clone());
+
+                            // Add to watchlist index
+                            db::watchlist_apartment_index::insert(config, watchlist.id, ap.card_id);
+                        }
+                        Err(e) => {
+                            error!("Producer Error: While processing calculations {}", e);
+                        }
+                    }
+                }
                 let duration_process_ = now_.elapsed();
 
                 info!(

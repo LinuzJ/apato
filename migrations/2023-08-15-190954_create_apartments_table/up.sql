@@ -1,6 +1,6 @@
 CREATE TABLE apartments (
     id SERIAL NOT NULL PRIMARY KEY,
-    card_id TEXT,
+    card_id INT UNIQUE,
     location_id INT,
     location_level INT,
     location_name TEXT,

@@ -2,10 +2,10 @@ use crate::models::watchlist::Watchlist;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
 
-#[derive(Insertable)]
+#[derive(Insertable, Clone)]
 #[diesel(table_name = crate::db::schema::apartments)]
 pub struct InsertableApartment {
-    pub card_id: Option<String>,
+    pub card_id: i32,
     pub location_id: Option<i32>,
     pub location_level: Option<i32>,
     pub location_name: Option<String>,
@@ -25,7 +25,7 @@ pub struct InsertableApartment {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Apartment {
     pub id: i32,
-    pub card_id: Option<String>,
+    pub card_id: i32,
     pub location_id: Option<i32>,
     pub location_level: Option<i32>,
     pub location_name: Option<String>,

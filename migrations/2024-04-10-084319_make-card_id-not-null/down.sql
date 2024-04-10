@@ -1,0 +1,1 @@
+ALTER TABLE apartments ALTER COLUMN card_id DROP NOT NULL

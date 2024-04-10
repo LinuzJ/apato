@@ -16,7 +16,7 @@ struct ApiResponse {
     user: User,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OikotieTokens {
     pub loaded: String,
     pub cuid: String,

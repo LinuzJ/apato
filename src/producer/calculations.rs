@@ -5,61 +5,60 @@ use std::cmp::Ordering;
 use std::{sync::Arc, vec};
 
 use crate::{
-    config::Config, db, interest_rate::interest_rate_client,
-    models::apartment::InsertableApartment, oikotie::oikotie::Oikotie,
+    config::Config, interest_rate::interest_rate_client, models::apartment::InsertableApartment,
+    oikotie::oikotie::Oikotie,
 };
 
 pub async fn process_apartment_calculations(
     config: &Arc<Config>,
-    apartments: Vec<InsertableApartment>,
+    mut apartment: InsertableApartment,
     mut oikotie: Oikotie,
-) -> Result<()> {
-    for mut apartment in apartments {
-        /*
-           Calculate yield here
-           - Get rent for similar apartments close by
-           - Get interest rate from Nordea
-           - Calculate
-        */
+) -> Result<InsertableApartment> {
+    /*
+       Calculate yield here
+       - Get rent for similar apartments close by
+       - Get interest rate from Nordea
+       - Calculate
+    */
 
-        let estimated_rent = oikotie.get_estimated_rent(&apartment).await?;
+    let estimated_rent = oikotie.get_estimated_rent(&apartment).await?;
 
-        apartment.rent = Some(estimated_rent);
+    apartment.rent = Some(estimated_rent);
 
-        let interest_rate_result = interest_rate_client::get_interest_rate(config).await;
-        let interest_rate = match interest_rate_result {
-            Ok(r) => r,
-            Err(_e) => {
-                return Err(anyhow!(
-                    "Failed to fetch interest for apartment {} in watchlist {}",
-                    apartment.card_id.unwrap_or_default(),
-                    apartment.watchlist_id
-                ));
-            }
-        };
-        let price: f64 = apartment.price.unwrap().into();
-        let rent: f64 = apartment.rent.unwrap().into();
-        let additional_cost: f64 = apartment.additional_costs.unwrap().into();
+    let interest_rate_result = interest_rate_client::get_interest_rate(config).await;
+    let interest_rate = match interest_rate_result {
+        Ok(r) => r,
+        Err(_e) => {
+            return Err(anyhow!(
+                "Failed to fetch interest for apartment {} in watchlist {}",
+                apartment.card_id,
+                apartment.watchlist_id
+            ));
+        }
+    };
 
-        let apartment_yield = calculate_irr(config, price, rent, additional_cost, interest_rate);
+    let price: f64 = apartment.price.unwrap().into();
+    let rent: f64 = apartment.rent.unwrap().into();
+    let additional_cost: f64 = apartment.additional_costs.unwrap().into();
 
-        let insertable_apartment = InsertableApartment {
-            card_id: apartment.card_id,
-            location_id: apartment.location_id,
-            location_level: apartment.location_level,
-            location_name: apartment.location_name,
-            size: apartment.size,
-            rooms: apartment.rooms,
-            price: apartment.price,
-            additional_costs: apartment.additional_costs,
-            rent: apartment.rent,
-            estimated_yield: Some(apartment_yield),
-            url: apartment.url,
-            watchlist_id: apartment.watchlist_id,
-        };
-        db::apartment::insert(config, insertable_apartment);
-    }
-    Ok(())
+    let apartment_yield = calculate_irr(config, price, rent, additional_cost, interest_rate);
+
+    let insertable_apartment = InsertableApartment {
+        card_id: apartment.card_id,
+        location_id: apartment.location_id,
+        location_level: apartment.location_level,
+        location_name: apartment.location_name,
+        size: apartment.size,
+        rooms: apartment.rooms,
+        price: apartment.price,
+        additional_costs: apartment.additional_costs,
+        rent: apartment.rent,
+        estimated_yield: Some(apartment_yield),
+        url: apartment.url,
+        watchlist_id: apartment.watchlist_id,
+    };
+
+    Ok(insertable_apartment)
 }
 
 pub fn calculate_irr(

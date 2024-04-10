@@ -1,8 +1,6 @@
 use anyhow::Result;
-use chrono::{Duration, Utc};
 use log::{error, info};
 use std::{
-    ops::Sub,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -15,8 +13,8 @@ use tokio::sync::broadcast::Receiver;
 use crate::{
     bot::bot::format_apartment_message,
     config::Config,
-    db::{apartment::get_new_for_watchlist, watchlist::get_all},
-    models::watchlist::Watchlist,
+    db::{self, watchlist::get_all},
+    models::{apartment::Apartment, watchlist::Watchlist},
 };
 
 pub struct Consumer;
@@ -65,11 +63,10 @@ async fn check_watchlist_for_new_apartment(
     chat_id: i64,
     bot: Arc<Bot>,
 ) -> Result<()> {
-    let now = Utc::now().naive_local();
-    let last_period_end = now.sub(Duration::seconds(config.consumer_timeout_seconds.into()));
-    let potential_apartments = get_new_for_watchlist(config, watchlist.clone(), last_period_end);
+    let unsent_apartments =
+        db::watchlist_apartment_index::get_unsent_apartments(config, &watchlist.clone());
 
-    let new_targets = match potential_apartments {
+    let new_targets = match unsent_apartments {
         Ok(v) => v,
         Err(e) => {
             error!("Consumer Error while fetching new targets: {:?}", e);
@@ -82,6 +79,16 @@ async fn check_watchlist_for_new_apartment(
 
     match amount_of_matches.cmp(&1) {
         std::cmp::Ordering::Greater => {
+            let mut aps: Vec<Apartment> = vec![];
+
+            for card_id in new_targets {
+                let ap = db::apartment::get_card_id(config, card_id);
+                if let Ok(unsent_ap) = ap {
+                    let ap_clone = unsent_ap[0].clone();
+                    aps.push(ap_clone);
+                }
+            }
+
             let watchlist_clone = watchlist.clone();
             bot.send_message(
                 ChatId(chat_id),
@@ -92,7 +99,7 @@ async fn check_watchlist_for_new_apartment(
             )
             .await?;
 
-            let formatted: Vec<String> = new_targets
+            let formatted: Vec<String> = aps
                 .iter()
                 .enumerate()
                 .map(|(index, apartment)| {
@@ -116,12 +123,15 @@ async fn check_watchlist_for_new_apartment(
             )
             .await?;
 
-            let formatted = format_apartment_message(&new_targets[0]);
+            let ap = db::apartment::get_card_id(config, new_targets[0]);
 
-            bot.send_message(ChatId(chat_id), formatted).await?;
+            if let Ok(unsent_ap) = ap {
+                let formatted = format_apartment_message(&unsent_ap[0]);
+                bot.send_message(ChatId(chat_id), formatted).await?;
+            }
         }
         std::cmp::Ordering::Less => {
-            info!("Weird things happening in consumer..")
+            info!("Consumer found nothing to send...")
         }
     }
 
