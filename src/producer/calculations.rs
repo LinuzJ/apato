@@ -318,6 +318,7 @@ fn reverse_matrix(matrix: &DMatrix<f64>) -> DMatrix<f64> {
     reversed
 }
 
+// TODO: Figure why inverse is needed
 // https://github.com/numpy/numpy/blob/1c8b03bf2c87f081eea211a5061e423285c548af/numpy/polynomial/polyutils.py#L286
 fn _map_domain(x: &Vec<f64>, _old: (f64, f64), _new: (f64, f64)) -> Vec<f64> {
     // let off = new.0 - ((new.1 - new.0) / (old.1 - old.0)) * old.0;

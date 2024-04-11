@@ -78,7 +78,7 @@ pub fn get_all_valid_for_watchlist(
     Ok(valid_apartments?)
 }
 
-pub fn get_new_for_watchlist(
+pub fn _get_new_for_watchlist(
     config: &Arc<Config>,
     watchlist: Watchlist,
     interval_start_time: NaiveDateTime,
@@ -95,7 +95,7 @@ pub fn get_new_for_watchlist(
     Ok(valid_apartments?)
 }
 
-pub fn get_apartments_within_period(
+pub fn _get_apartments_within_period(
     config: &Arc<Config>,
     wanted_card_id: i32,
     interval_start_time: NaiveDateTime,

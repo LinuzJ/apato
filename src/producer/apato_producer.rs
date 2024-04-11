@@ -43,10 +43,10 @@ impl Producer {
 
                 let mut target_size = SizeTarget::empty();
                 if let Some(min_size) = watchlist.target_size_min {
-                    target_size.min = Some(min_size as i32)
+                    target_size.min = Some(min_size)
                 }
                 if let Some(max_size) = watchlist.target_size_max {
-                    target_size.max = Some(max_size as i32)
+                    target_size.max = Some(max_size)
                 }
 
                 let now = Instant::now();

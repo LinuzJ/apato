@@ -40,7 +40,7 @@ impl Consumer {
                 let bot = bot.clone();
                 let chat_id = watchlist.chat_id;
 
-                check__for_new_apartments(config, watchlist, chat_id, bot).await?;
+                check_for_new_apartments(config, watchlist, chat_id, bot).await?;
             }
 
             let duration = start.elapsed();
@@ -57,7 +57,7 @@ impl Consumer {
     }
 }
 
-async fn check__for_new_apartments(
+async fn check_for_new_apartments(
     config: &Arc<Config>,
     watchlist: Watchlist,
     chat_id: i64,
