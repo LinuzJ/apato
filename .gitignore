@@ -11,3 +11,5 @@ output.log
 *.log
 
 config.toml
+
+*.DS_Store
