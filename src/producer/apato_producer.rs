@@ -2,13 +2,13 @@ use crate::{
     config::Config,
     db::{self, watchlist},
     models::{
-        apartment::InsertableApartment,
+        apartment::{Apartment, InsertableApartment},
         watchlist::{SizeTarget, Watchlist},
     },
-    oikotie::oikotie::Oikotie,
-    producer::calculations::process_apartment_calculations,
+    MessageTask, TaskType,
 };
 use anyhow::Result;
+use async_channel::Sender;
 use log::{error, info};
 use std::{
     sync::{
@@ -17,7 +17,8 @@ use std::{
     },
     time::{Duration, Instant},
 };
-use tokio::sync::{broadcast::Receiver, watch};
+use teloxide::{requests::Requester, types::ChatId, Bot};
+use tokio::sync::broadcast::Receiver;
 
 pub struct Producer;
 
@@ -25,34 +26,18 @@ impl Producer {
     pub async fn run(
         config: &Arc<Config>,
         shutdown: Arc<AtomicBool>,
+        producer_sender: Sender<MessageTask>,
+        bot: Arc<Bot>,
         mut shutdown_rx: Receiver<()>,
     ) -> Result<()> {
-        let interval_in_seconds = config.producer_timeout_seconds as u64; // TODO make this longer
+        let interval_in_seconds = config.producer_timeout_seconds as u64;
         let interval = Duration::from_secs(interval_in_seconds);
 
-        // Main Producer loop
         while !shutdown.load(Ordering::Acquire) {
-            info!("Starting PricingProducer run");
-            let start = Instant::now();
+            // TODO handle errors
+            handle_watchlists_tasks(config, producer_sender.clone()).await;
 
-            let watchlists = watchlist::get_all(config);
-            let mut watchlist_handles = Vec::new();
-
-            for watchlist in watchlists {
-                let config_clone = config.clone();
-                let handle = tokio::task::spawn(async move {
-                    handle_watchlist_producer(&config_clone, &watchlist).await;
-                });
-                watchlist_handles.push(handle);
-            }
-
-            // TODO: Make this wait in a non-sequential way?
-            for handle in watchlist_handles {
-                handle.await?;
-            }
-
-            let duration = start.elapsed();
-            info!("Finished PricingProducer run in {:?}", duration);
+            handle_update_message_tasks(config, bot.clone(), producer_sender.clone()).await;
 
             tokio::select! {
                _ = tokio::time::sleep(interval) => {}
@@ -65,78 +50,81 @@ impl Producer {
     }
 }
 
-async fn handle_watchlist_producer(config: &Arc<Config>, watchlist: &Watchlist) {
-    info!("Starting producer run for watchlist_id: {:?}", watchlist.id);
-
-    let mut oikotie_client = Oikotie::new().await;
-
-    let mut target_size = SizeTarget::empty();
-    if let Some(min_size) = watchlist.target_size_min {
-        target_size.min = Some(min_size)
+async fn handle_watchlists_tasks(config: &Arc<Config>, producer_sender: Sender<MessageTask>) {
+    let watchlists = watchlist::get_all(&config.clone());
+    for watchlist in watchlists {
+        let _ = producer_sender
+            .send(MessageTask {
+                task_type: TaskType::UpdateWatchlist,
+                watchlist,
+                apartment: None,
+            })
+            .await;
     }
-    if let Some(max_size) = watchlist.target_size_max {
-        target_size.max = Some(max_size)
-    }
-
-    let now = Instant::now();
-    let apartments: Vec<InsertableApartment> = oikotie_client
-        .get_apartments(config.clone(), &watchlist, target_size)
-        .await
-        .unwrap_or_default();
-
-    let duration_process = now.elapsed();
-    info!(
-        "Producer oikotie fetch section took {:?} for watchlist {:?}",
-        duration_process, watchlist.id
-    );
-
-    let now_ = Instant::now();
-    let mut apartment_handles = Vec::new();
-
-    for apartment in apartments {
-        let oiko_clone = oikotie_client.clone();
-        let watchlist_clone = watchlist.clone();
-        let config_clone = config.clone();
-        let handle = tokio::task::spawn(async move {
-            handle_apartmet_producer(&config_clone, oiko_clone, apartment, watchlist_clone).await;
-        });
-
-        apartment_handles.push(handle);
-    }
-
-    for handle in apartment_handles {
-        let _ = handle.await;
-    }
-    let duration_process_ = now_.elapsed();
-
-    info!(
-        "Producer apartment section took {:?} for watchlist {:?}",
-        duration_process_, watchlist.id
-    );
-
-    info!("Finished producer for watchlist_id: {:?}", watchlist.id);
 }
 
-async fn handle_apartmet_producer(
+async fn handle_update_message_tasks(
     config: &Arc<Config>,
-    oikotie: Oikotie,
-    apartment: InsertableApartment,
-    watchlist: Watchlist,
+    bot: Arc<Bot>,
+    producer_sender: Sender<MessageTask>,
 ) {
-    let complete_apartment = process_apartment_calculations(config, apartment, oikotie).await;
+    let watchlists = db::watchlist::get_all(&config);
 
-    match complete_apartment {
-        Ok(ap) => {
-            // Insert into apartment table
-            db::apartment::insert(config, ap.clone());
+    for watchlist in watchlists {
+        let chat_id = watchlist.chat_id;
 
-            // Add to watchlist index if over target yield
-            if ap.estimated_yield.unwrap_or_default() > watchlist.target_yield.unwrap_or_default() {
-                db::watchlist_apartment_index::insert(config, watchlist.id, ap.card_id);
-            }
-        }
-        Err(e) => {
-            error!("Producer Error: While processing calculations {}", e);
+        match check_for_new_apartments_to_send(
+            &config,
+            watchlist,
+            chat_id,
+            bot.clone(),
+            producer_sender.clone(),
+        )
+        .await
+        {
+            // TODO FIX
+            Ok(_) => {}
+            Err(_e) => {}
         }
     }
+}
+
+async fn check_for_new_apartments_to_send(
+    config: &Arc<Config>,
+    watchlist: Watchlist,
+    chat_id: i64,
+    bot: Arc<Bot>,
+    producer_sender: Sender<MessageTask>,
+) -> Result<()> {
+    let unsent_apartments =
+        db::watchlist_apartment_index::get_unsent_apartments(config, &watchlist.clone());
+
+    let new_targets = match unsent_apartments {
+        Ok(v) => v,
+        Err(e) => {
+            error!("Consumer Error while fetching new targets: {:?}", e);
+            bot.send_message(ChatId(chat_id), format!("{}", e)).await?;
+            return Ok(());
+        }
+    };
+
+    let mut aps: Vec<Apartment> = Vec::new();
+
+    for card_id in new_targets {
+        let ap = db::apartment::get_card_id(config, card_id);
+        if let Ok(unsent_ap) = ap {
+            let ap_clone = unsent_ap[0].clone();
+            aps.push(ap_clone);
+        }
+    }
+
+    for ap in aps {
+        let task = MessageTask {
+            task_type: TaskType::SendMessage,
+            watchlist: watchlist.clone(),
+            apartment: Some(ap),
+        };
+        producer_sender.send(task).await;
+    }
+    Ok(())
 }

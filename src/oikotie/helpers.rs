@@ -81,7 +81,7 @@ fn calculate_median(numbers: &mut Vec<i32>) -> f32 {
     if len % 2 == 0 {
         // If the length is even, take the average of the middle two values
         let mid = len / 2;
-
+        // TODO Figure out why this paniced
         (numbers[mid - 1] + numbers[mid]) as f32 / 2.0
     } else {
         // If the length is odd, return the middle value

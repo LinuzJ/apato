@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Instant;
 
 use crate::config::Config;
 use crate::db;
@@ -13,6 +14,7 @@ use anyhow::anyhow;
 use anyhow::{Error, Result};
 use helpers::create_location_string;
 use log::error;
+use log::info;
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::de;
 use serde::Deserializer;
@@ -155,9 +157,9 @@ impl Oikotie {
        Use Oikotie's search API to find location ID based on text query
     */
     pub async fn get_location_id(&mut self, location_string: &str) -> Result<u32> {
-        if self.tokens.is_none() {
-            self.tokens = get_tokens().await;
-        }
+        // if self.tokens.is_none() {
+        //     self.tokens = get_tokens().await;
+        // }
 
         let response: Result<Vec<LocationApiResponseItem>, reqwest::Error> =
             fetch_location_id(self.tokens.as_ref().unwrap(), location_string).await;
@@ -200,6 +202,7 @@ impl Oikotie {
             self.tokens = get_tokens().await;
         }
 
+        // TODO: Benchmark this function. Why so slow?
         let location: &Location = &Location {
             id: watchlist.id,
             level: watchlist.location_level,
@@ -433,6 +436,7 @@ async fn fetch_apartments(
         Err(_e) => todo!(),
     };
 
+    let now = Instant::now();
     let response = client
         .get(oikotie_cards_api_url)
         .query(&params)
@@ -444,6 +448,11 @@ async fn fetch_apartments(
         Ok(re) => re.json().await?,
         Err(e) => return Err(e),
     };
+    let duration_process = now.elapsed();
+    info!(
+        "OIKOTIE REQUEST AND DESErIALIZATION TOOK {:?}",
+        duration_process
+    );
 
     Ok(api_response)
 }

@@ -417,9 +417,10 @@ async fn send_formatted_message_all(
     Ok(())
 }
 
-pub fn format_apartment_message(apartment: &Apartment) -> String {
+pub fn format_apartment_message(watchlist: &Watchlist, apartment: &Apartment) -> String {
     format!(
-        "Location: {} \n Size: {} \n Price: {} \n Estimated Rent: {} \n Estimated Yield: {} \n Url: {}",
+        "Found a new apartment matching your criteria for watchlist {} \n\n Location: {} \n Size: {} \n Price: {} \n Estimated Rent: {} \n Estimated Yield: {} \n Url: {}",
+        watchlist.id,
         apartment
             .location_name
             .as_ref()
