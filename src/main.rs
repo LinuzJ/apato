@@ -13,7 +13,7 @@ mod oikotie;
 mod producer;
 
 use anyhow::Result;
-use async_channel;
+
 use bot::bot::ApatoTelegramBot;
 use config::Config;
 use consumer::apato_consumer::Consumer;
@@ -30,10 +30,10 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
-use teloxide::Bot;
+
 use tokio::sync::broadcast;
 
-use crate::db::watchlist;
+
 
 #[derive(Debug, Clone)]
 pub enum TaskType {

@@ -12,7 +12,7 @@ use crate::{
     models::{
         watchlist::Watchlist,
         watchlist_apartment_index_model::{
-            self, InsertableWatchlistApartmentIndex, WatchlistApartmentIndex,
+            InsertableWatchlistApartmentIndex, WatchlistApartmentIndex,
         },
     },
 };
@@ -74,7 +74,7 @@ pub fn set_to_read(config: &Arc<Config>, watchlist: &Watchlist, target_card_id: 
         .set(has_been_sent.eq(true))
         .execute(conn)
     {
-        Ok(n) => info!(
+        Ok(_n) => info!(
             "Consumer set watchlist {:?} and card_id {} to has_been_sent = {}",
             watchlist.id, target_card_id, true
         ),

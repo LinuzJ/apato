@@ -1,21 +1,18 @@
 use crate::{
     config::Config,
     db::{self, watchlist},
-    models::{
-        apartment::{Apartment, InsertableApartment},
-        watchlist::{SizeTarget, Watchlist},
-    },
+    models::{apartment::Apartment, watchlist::Watchlist},
     MessageTask, TaskType,
 };
 use anyhow::Result;
 use async_channel::Sender;
-use log::{error, info};
+use log::error;
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    time::{Duration, Instant},
+    time::Duration,
 };
 use teloxide::{requests::Requester, types::ChatId, Bot};
 use tokio::sync::broadcast::Receiver;
@@ -68,13 +65,13 @@ async fn handle_update_message_tasks(
     bot: Arc<Bot>,
     producer_sender: Sender<MessageTask>,
 ) {
-    let watchlists = db::watchlist::get_all(&config);
+    let watchlists = db::watchlist::get_all(config);
 
     for watchlist in watchlists {
         let chat_id = watchlist.chat_id;
 
         match check_for_new_apartments_to_send(
-            &config,
+            config,
             watchlist,
             chat_id,
             bot.clone(),
@@ -124,7 +121,8 @@ async fn check_for_new_apartments_to_send(
             watchlist: watchlist.clone(),
             apartment: Some(ap),
         };
-        producer_sender.send(task).await;
+        // TODO fix
+        let _ = producer_sender.send(task).await;
     }
     Ok(())
 }

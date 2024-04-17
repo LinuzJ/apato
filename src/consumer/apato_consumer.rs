@@ -1,5 +1,5 @@
 use anyhow::Result;
-use async_channel::{Receiver, Sender};
+use async_channel::Receiver;
 use futures::future::TryJoinAll;
 use log::{error, info};
 use std::{
@@ -42,25 +42,22 @@ impl Consumer {
         while !shutdown.load(Ordering::Acquire) {
             let queue_message = consumer_reciever.try_recv();
 
-            match queue_message {
-                Ok(task) => {
-                    let start = Instant::now();
-                    info!("Starting Consumer run");
-                    let bot = bot.clone();
-                    // TODO Handle errors from both
-                    match task.task_type {
-                        TaskType::UpdateWatchlist => {
-                            update_watchlist_task(config, task.watchlist, consumer_number).await
-                        }
-                        TaskType::SendMessage => {
-                            send_message_task(config, task.watchlist, task.apartment.unwrap(), bot)
-                                .await?
-                        }
+            if let Ok(task) = queue_message {
+                let start = Instant::now();
+                info!("Starting Consumer run");
+                let bot = bot.clone();
+                // TODO Handle errors from both
+                match task.task_type {
+                    TaskType::UpdateWatchlist => {
+                        update_watchlist_task(config, task.watchlist, consumer_number).await
                     }
-                    let duration = start.elapsed();
-                    info!("Finished Consumer run in {:?}", duration);
+                    TaskType::SendMessage => {
+                        send_message_task(config, task.watchlist, task.apartment.unwrap(), bot)
+                            .await?
+                    }
                 }
-                Err(_) => {}
+                let duration = start.elapsed();
+                info!("Finished Consumer run in {:?}", duration);
             }
 
             tokio::select! {
@@ -177,5 +174,5 @@ fn get_target_size(min: Option<i32>, max: Option<i32>) -> SizeTarget {
     if let Some(max_size) = max {
         target_size.max = Some(max_size)
     }
-    return target_size;
+    target_size
 }
