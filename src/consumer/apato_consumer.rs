@@ -114,10 +114,13 @@ async fn update_watchlist_task(
     let target_size = get_target_size(watchlist.target_size_min, watchlist.target_size_max);
 
     // TODO make this faster ?
-    let apartments: Vec<InsertableApartment> = oikotie_client
+    let apartments: Vec<InsertableApartment> = match oikotie_client
         .get_apartments(config.clone(), &watchlist, target_size)
         .await
-        .unwrap_or_default();
+    {
+        Ok(aps) => aps,
+        Err(e) => return Err(e),
+    };
 
     // TODO Use thread pool
     let mut apartment_handles = Vec::new();

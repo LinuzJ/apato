@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-
 use crate::config::Config;
 use crate::db;
 use crate::db::watchlist_apartment_index::get_watchlist_apartment_connector;
@@ -197,7 +196,7 @@ impl Oikotie {
         config: Arc<Config>,
         watchlist: &Watchlist,
         size: SizeTarget,
-    ) -> Option<Vec<InsertableApartment>> {
+    ) -> Result<Vec<InsertableApartment>> {
         if self.tokens.is_none() {
             self.tokens = get_tokens().await;
         }
@@ -214,13 +213,14 @@ impl Oikotie {
 
         let cards = match cards_response {
             Ok(c) => c.cards,
-            Err(_e) => return None,
+            Err(e) => return Err(e.into()),
         };
 
         let mut apartments: Vec<InsertableApartment> = Vec::new();
 
         for card in cards {
             let in_databse = exists_in_database(config.clone(), &card);
+
             // TODO fix when new watchlist with same location misses here. Make sure to add to index even through already in place
             let has_been_sent = has_been_sent_to_watchlist(config.clone(), &card, watchlist);
 
@@ -236,7 +236,7 @@ impl Oikotie {
             }
         }
 
-        Some(apartments)
+        Ok(apartments)
     }
 
     /*
@@ -443,12 +443,10 @@ async fn fetch_apartments(
         .send()
         .await;
 
-    let api_response: OitkotieCardsApiResponse = match response {
-        Ok(re) => re.json().await?,
+    match response {
+        Ok(re) => Ok(re.json().await?),
         Err(e) => return Err(e),
-    };
-
-    Ok(api_response)
+    }
 }
 
 async fn card_into_complete_apartment(
