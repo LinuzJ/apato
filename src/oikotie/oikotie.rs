@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::time::Instant;
+
 
 use crate::config::Config;
 use crate::db;
@@ -14,7 +14,7 @@ use anyhow::anyhow;
 use anyhow::{Error, Result};
 use helpers::create_location_string;
 use log::error;
-use log::info;
+
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::de;
 use serde::Deserializer;
@@ -436,7 +436,6 @@ async fn fetch_apartments(
         Err(_e) => todo!(),
     };
 
-    let now = Instant::now();
     let response = client
         .get(oikotie_cards_api_url)
         .query(&params)
@@ -448,11 +447,6 @@ async fn fetch_apartments(
         Ok(re) => re.json().await?,
         Err(e) => return Err(e),
     };
-    let duration_process = now.elapsed();
-    info!(
-        "OIKOTIE REQUEST AND DESErIALIZATION TOOK {:?}",
-        duration_process
-    );
 
     Ok(api_response)
 }

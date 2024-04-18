@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc};
 
 use super::{
     establish_connection,
@@ -11,7 +11,7 @@ use crate::{
     models::{apartment::Apartment, apartment::InsertableApartment, watchlist::Watchlist},
 };
 use anyhow::anyhow;
-use chrono::NaiveDateTime;
+use chrono::{Duration, NaiveDateTime, Utc};
 use diesel::{prelude::*, result::Error};
 use log::{error, info};
 
@@ -121,4 +121,25 @@ pub fn get_card_id(config: &Arc<Config>, target_card_id: i32) -> Result<Vec<Apar
         .load(conn);
 
     valid_apartments
+}
+
+pub fn apartment_exists_and_is_fresh(
+    config: &Arc<Config>,
+    target_card_id: i32,
+) -> Result<bool, Error> {
+    let conn = &mut establish_connection(config);
+    let now = Utc::now().naive_local();
+    let freshness_cutoff = now - Duration::days(5);
+
+    let valid_apartments: Result<Vec<Apartment>, Error> = apartments::table
+        .filter(apartments::card_id.eq(target_card_id))
+        .filter(apartments::updated_at.gt(freshness_cutoff))
+        .select(Apartment::as_select())
+        .limit(1)
+        .load(conn);
+
+    match valid_apartments {
+        Ok(aps) => Ok(aps.len() == 1),
+        Err(e) => Err(e),
+    }
 }

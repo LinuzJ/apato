@@ -81,3 +81,24 @@ pub fn set_to_read(config: &Arc<Config>, watchlist: &Watchlist, target_card_id: 
         Err(e) => error!("Error: {:?}", e),
     }
 }
+
+pub fn index_exists(
+    config: &Arc<Config>,
+    target_watchlist_id: i32,
+    target_card_id: i32,
+) -> Result<bool, Error> {
+    let conn = &mut establish_connection(config);
+
+    let valid_apartments: Result<Vec<WatchlistApartmentIndex>, Error> =
+        watchlist_apartment_index::table
+            .filter(watchlist_apartment_index::card_id.eq(target_card_id))
+            .filter(watchlist_apartment_index::watchlist_id.eq(target_watchlist_id))
+            .select(WatchlistApartmentIndex::as_select())
+            .limit(1)
+            .load(conn);
+
+    match valid_apartments {
+        Ok(aps) => Ok(aps.len() == 1),
+        Err(e) => Err(e),
+    }
+}

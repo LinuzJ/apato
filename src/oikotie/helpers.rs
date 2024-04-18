@@ -25,6 +25,7 @@ pub fn get_rent_regex(rent_string: String) -> i32 {
             }
         }
     } else {
+        // TODO FIX
         panic!("lol")
     }
 
@@ -46,6 +47,10 @@ pub fn estimate_rent(size: f32, rental_data_nearby: Vec<RentalData>) -> i32 {
     if count == 0 {
         let mut rent_only: Vec<i32> = rental_data_nearby.iter().map(|d| d.rent).collect();
         let mut size_only: Vec<i32> = rental_data_nearby.iter().map(|d| d.size as i32).collect();
+
+        if rent_only.is_empty() || size_only.is_empty() {
+            return 0;
+        }
 
         let rent_median = calculate_median(&mut rent_only);
         let size_median = calculate_median(&mut size_only);
@@ -75,13 +80,17 @@ fn smaller_than_median(size: f32, median: f32) -> f32 {
 }
 
 fn calculate_median(numbers: &mut Vec<i32>) -> f32 {
+    if numbers.is_empty() {
+        return 0.0;
+    }
+
     numbers.sort(); // Sort the vector in ascending order
 
     let len = numbers.len();
     if len % 2 == 0 {
         // If the length is even, take the average of the middle two values
         let mid = len / 2;
-        // TODO Figure out why this paniced
+
         (numbers[mid - 1] + numbers[mid]) as f32 / 2.0
     } else {
         // If the length is odd, return the middle value

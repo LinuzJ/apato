@@ -44,12 +44,18 @@ impl Consumer {
 
             if let Ok(task) = queue_message {
                 let start = Instant::now();
-                info!("Starting Consumer run");
+                info!("Starting run on Consumer {}", consumer_number);
                 let bot = bot.clone();
                 // TODO Handle errors from both
                 match task.task_type {
                     TaskType::UpdateWatchlist => {
-                        update_watchlist_task(config, task.watchlist, consumer_number).await
+                        let result =
+                            update_watchlist_task(config, task.watchlist, consumer_number).await;
+
+                        match result {
+                            Ok(ok) => ok,
+                            Err(e) => error!("Error in Consumer {}: {:?}", consumer_number, e),
+                        }
                     }
                     TaskType::SendMessage => {
                         send_message_task(config, task.watchlist, task.apartment.unwrap(), bot)
@@ -57,7 +63,10 @@ impl Consumer {
                     }
                 }
                 let duration = start.elapsed();
-                info!("Finished Consumer run in {:?}", duration);
+                info!(
+                    "Finished run in {:?} seconds on consumer {}",
+                    duration, consumer_number
+                );
             }
 
             tokio::select! {
@@ -90,7 +99,11 @@ async fn send_message_task(
     Ok(())
 }
 
-async fn update_watchlist_task(config: &Arc<Config>, watchlist: Watchlist, consumer_number: i32) {
+async fn update_watchlist_task(
+    config: &Arc<Config>,
+    watchlist: Watchlist,
+    consumer_number: i32,
+) -> Result<()> {
     info!(
         "Starting watchlist task run for watchlist_id: {:?} on consumer {}",
         watchlist.id, consumer_number
@@ -113,14 +126,18 @@ async fn update_watchlist_task(config: &Arc<Config>, watchlist: Watchlist, consu
         let watchlist_clone = watchlist.clone();
         let config_clone = config.clone();
         let handle = tokio::task::spawn(async move {
-            process_apartment(
+            return match process_apartment(
                 &config_clone,
                 oiko_clone,
                 apartment,
                 watchlist_clone,
                 consumer_number,
             )
-            .await;
+            .await
+            {
+                Ok(()) => Ok(()),
+                Err(e) => Err(e),
+            };
         });
 
         apartment_handles.push(handle);
@@ -129,13 +146,15 @@ async fn update_watchlist_task(config: &Arc<Config>, watchlist: Watchlist, consu
     let join_apartment_handles = apartment_handles.into_iter().collect::<TryJoinAll<_>>();
 
     if let Err(err) = tokio::try_join!(join_apartment_handles) {
-        error!("Error: {:?}", err)
+        return Err(err.into());
     }
 
     info!(
         "Finished watchlist task for watchlist_id: {:?} on consumer {}",
         watchlist.id, consumer_number
     );
+
+    Ok(())
 }
 
 async fn process_apartment(
@@ -144,26 +163,63 @@ async fn process_apartment(
     apartment: InsertableApartment,
     watchlist: Watchlist,
     consumer_number: i32,
-) {
-    let complete_apartment = process_apartment_calculations(config, apartment, oikotie).await;
+) -> Result<()> {
+    // Check if aprtmantmend already exists and is fresh
+    let apartment_in_db_res =
+        db::apartment::apartment_exists_and_is_fresh(config, apartment.card_id);
 
-    match complete_apartment {
-        Ok(ap) => {
-            // Insert into apartment table
-            db::apartment::insert(config, ap.clone());
+    let apartment_in_db = match apartment_in_db_res {
+        Ok(b) => b,
+        Err(e) => return Err(e.into()),
+    };
 
+    if !apartment_in_db {
+        let complete_apartment = process_apartment_calculations(config, apartment, oikotie).await;
+        return match complete_apartment {
+            Ok(ap) => {
+                // Insert into apartment table
+                db::apartment::insert(config, ap.clone());
+
+                // Add to watchlist index if over target yield
+                if ap.estimated_yield.unwrap_or_default()
+                    > watchlist.target_yield.unwrap_or_default()
+                {
+                    db::watchlist_apartment_index::insert(config, watchlist.id, ap.card_id);
+                }
+                Ok(())
+            }
+            Err(e) => {
+                error!(
+                    "Consumer Error: While processing calculations {} on consumer {}",
+                    e, consumer_number
+                );
+                Err(e)
+            }
+        };
+    }
+
+    // Check if there exists an index for target card for current watchlist
+    let index_exists_query =
+        db::watchlist_apartment_index::index_exists(config, watchlist.id, apartment.card_id);
+
+    let index_exists = match index_exists_query {
+        Ok(b) => b,
+        Err(e) => return Err(e.into()),
+    };
+
+    if !index_exists {
+        let ap_query = db::apartment::get_card_id(config, apartment.card_id);
+
+        if let Ok(aps) = ap_query {
+            let ap = &aps[0];
             // Add to watchlist index if over target yield
             if ap.estimated_yield.unwrap_or_default() > watchlist.target_yield.unwrap_or_default() {
                 db::watchlist_apartment_index::insert(config, watchlist.id, ap.card_id);
             }
         }
-        Err(e) => {
-            error!(
-                "Consumer Error: While processing calculations {} on consumer {}",
-                e, consumer_number
-            );
-        }
     }
+
+    Ok(())
 }
 
 fn get_target_size(min: Option<i32>, max: Option<i32>) -> SizeTarget {
