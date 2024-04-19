@@ -1,4 +1,4 @@
-use std::{sync::Arc};
+use std::sync::Arc;
 
 use super::{
     establish_connection,
@@ -111,7 +111,10 @@ pub fn _get_apartments_within_period(
     Ok(valid_apartments?)
 }
 
-pub fn get_card_id(config: &Arc<Config>, target_card_id: i32) -> Result<Vec<Apartment>, Error> {
+pub fn get_apartment_by_card_id(
+    config: &Arc<Config>,
+    target_card_id: i32,
+) -> Result<Option<Apartment>, Error> {
     let conn = &mut establish_connection(config);
 
     let valid_apartments: Result<Vec<Apartment>, Error> = apartments::table
@@ -120,7 +123,17 @@ pub fn get_card_id(config: &Arc<Config>, target_card_id: i32) -> Result<Vec<Apar
         .limit(1)
         .load(conn);
 
-    valid_apartments
+    match valid_apartments {
+        Ok(aps) => {
+            if !aps.is_empty() {
+                let target_ap = aps[0].clone();
+                Ok(Some(target_ap))
+            } else {
+                Ok(None)
+            }
+        }
+        Err(e) => Err(e),
+    }
 }
 
 pub fn apartment_exists_and_is_fresh(

@@ -10,7 +10,7 @@ use std::{
     time::Instant,
 };
 use teloxide::{requests::Requester, types::ChatId, Bot};
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, Semaphore};
 
 use crate::{
     bot::bot::format_apartment_message,
@@ -87,13 +87,17 @@ async fn send_message_task(
     bot: Arc<Bot>,
 ) -> Result<()> {
     let chat_id = watchlist.chat_id;
-    let ap = db::apartment::get_card_id(config, apartment.card_id);
+    let apatment_result = db::apartment::get_apartment_by_card_id(config, apartment.card_id);
+    match apatment_result {
+        Ok(a) => {
+            if let Some(ap) = a {
+                let formatted = format_apartment_message(&watchlist, &ap);
+                bot.send_message(ChatId(chat_id), formatted).await?;
 
-    if let Ok(unsent_ap) = ap {
-        let formatted = format_apartment_message(&watchlist, &unsent_ap[0]);
-        bot.send_message(ChatId(chat_id), formatted).await?;
-
-        db::watchlist_apartment_index::set_to_read(config, &watchlist, unsent_ap[0].card_id);
+                db::watchlist_apartment_index::set_to_read(config, &watchlist, apartment.card_id);
+            }
+        }
+        Err(e) => return Err(e.into()),
     }
 
     Ok(())
@@ -122,13 +126,21 @@ async fn update_watchlist_task(
         Err(e) => return Err(e),
     };
 
-    // TODO Use thread pool
+    // Cap the amount of apartments processed at the same time
+    let sem = Arc::new(Semaphore::new(
+        usize::try_from(config.consumer_thread_limit).unwrap(),
+    ));
+
     let mut apartment_handles = Vec::new();
     for apartment in apartments {
+        let permit = Arc::clone(&sem).acquire_owned().await;
+
         let oiko_clone = oikotie_client.clone();
         let watchlist_clone = watchlist.clone();
         let config_clone = config.clone();
+
         let handle = tokio::task::spawn(async move {
+            let _permit = permit;
             return match process_apartment(
                 &config_clone,
                 oiko_clone,
@@ -167,6 +179,12 @@ async fn process_apartment(
     watchlist: Watchlist,
     consumer_number: i32,
 ) -> Result<()> {
+    // TODO
+    // 1. Check if apartment exists
+    // 2. if yes -> check if fresh
+    //                  if no -> update
+    // 3. if no -> fetch
+
     // Check if aprtmantmend already exists and is fresh
     let apartment_in_db_res =
         db::apartment::apartment_exists_and_is_fresh(config, apartment.card_id);
@@ -211,14 +229,23 @@ async fn process_apartment(
     };
 
     if !index_exists {
-        let ap_query = db::apartment::get_card_id(config, apartment.card_id);
-
-        if let Ok(aps) = ap_query {
-            let ap = &aps[0];
-            // Add to watchlist index if over target yield
-            if ap.estimated_yield.unwrap_or_default() > watchlist.target_yield.unwrap_or_default() {
-                db::watchlist_apartment_index::insert(config, watchlist.id, ap.card_id);
+        let apartment_result = db::apartment::get_apartment_by_card_id(config, apartment.card_id);
+        match apartment_result {
+            Ok(a) => {
+                if let Some(apartment) = a {
+                    // Add to watchlist index if over target yield
+                    if apartment.estimated_yield.unwrap_or_default()
+                        > watchlist.target_yield.unwrap_or_default()
+                    {
+                        db::watchlist_apartment_index::insert(
+                            config,
+                            watchlist.id,
+                            apartment.card_id,
+                        );
+                    }
+                }
             }
+            Err(e) => return Err(e.into()),
         }
     }
 

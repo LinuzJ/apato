@@ -108,10 +108,15 @@ async fn check_for_new_apartments_to_send(
     let mut aps: Vec<Apartment> = Vec::new();
 
     for card_id in new_targets {
-        let ap = db::apartment::get_card_id(config, card_id);
-        if let Ok(unsent_ap) = ap {
-            let ap_clone = unsent_ap[0].clone();
-            aps.push(ap_clone);
+        let ap = db::apartment::get_apartment_by_card_id(config, card_id);
+        match ap {
+            Ok(a) => {
+                if let Some(apartment) = a {
+                    let ap_clone = apartment.clone();
+                    aps.push(ap_clone);
+                }
+            }
+            Err(e) => return Err(e.into()),
         }
     }
 

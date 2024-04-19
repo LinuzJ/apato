@@ -219,12 +219,18 @@ impl Oikotie {
         let mut apartments: Vec<InsertableApartment> = Vec::new();
 
         for card in cards {
-            let in_databse = exists_in_database(config.clone(), &card);
+            let apartment_query =
+                db::apartment::get_apartment_by_card_id(&config, card.id.try_into().unwrap());
+
+            let existing_apartment = match apartment_query {
+                Ok(ap) => ap,
+                Err(e) => return Err(e.into()),
+            };
 
             // TODO fix when new watchlist with same location misses here. Make sure to add to index even through already in place
             let has_been_sent = has_been_sent_to_watchlist(config.clone(), &card, watchlist);
 
-            if !in_databse && !has_been_sent {
+            if existing_apartment.is_none() && !has_been_sent {
                 let apartment: InsertableApartment = card_into_complete_apartment(
                     self.tokens.as_ref().unwrap(),
                     &card,
@@ -501,16 +507,4 @@ fn has_been_sent_to_watchlist(config: Arc<Config>, card: &Card, watchlist: &Watc
     }
 
     apartments[0].has_been_sent
-}
-
-fn exists_in_database(config: Arc<Config>, card: &Card) -> bool {
-    let apartments = match db::apartment::get_card_id(&config, card.id.try_into().unwrap()) {
-        Ok(aps) => aps,
-        Err(_e) => {
-            error!("Error while querying apartmetns withing period");
-            vec![]
-        }
-    };
-
-    !apartments.is_empty()
 }
