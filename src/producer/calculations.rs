@@ -9,11 +9,11 @@ use crate::{
     oikotie::oikotie::Oikotie,
 };
 
-pub async fn process_apartment_calculations(
+pub async fn get_estimated_irr(
     config: &Arc<Config>,
     mut apartment: InsertableApartment,
     mut oikotie: Oikotie,
-) -> Result<InsertableApartment> {
+) -> Result<f64> {
     /*
        Calculate yield here
        - Get rent for similar apartments close by
@@ -41,24 +41,9 @@ pub async fn process_apartment_calculations(
     let rent: f64 = apartment.rent.unwrap().into();
     let additional_cost: f64 = apartment.additional_costs.unwrap().into();
 
-    let apartment_yield = calculate_irr(config, price, rent, additional_cost, interest_rate);
+    let irr = calculate_irr(config, price, rent, additional_cost, interest_rate);
 
-    let insertable_apartment = InsertableApartment {
-        card_id: apartment.card_id,
-        location_id: apartment.location_id,
-        location_level: apartment.location_level,
-        location_name: apartment.location_name,
-        size: apartment.size,
-        rooms: apartment.rooms,
-        price: apartment.price,
-        additional_costs: apartment.additional_costs,
-        rent: apartment.rent,
-        estimated_yield: Some(apartment_yield),
-        url: apartment.url,
-        watchlist_id: apartment.watchlist_id,
-    };
-
-    Ok(insertable_apartment)
+    Ok(irr)
 }
 
 pub fn calculate_irr(

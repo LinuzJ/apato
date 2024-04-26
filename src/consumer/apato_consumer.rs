@@ -1,5 +1,6 @@
 use anyhow::Result;
 use async_channel::Receiver;
+use diesel::IntoSql;
 use futures::future::TryJoinAll;
 use log::{error, info};
 use std::{
@@ -15,13 +16,13 @@ use tokio::sync::{broadcast, Semaphore};
 use crate::{
     bot::bot::format_apartment_message,
     config::Config,
-    db::{self},
+    db,
     models::{
         apartment::{Apartment, InsertableApartment},
         watchlist::{SizeTarget, Watchlist},
     },
     oikotie::oikotie::Oikotie,
-    producer::calculations::process_apartment_calculations,
+    producer::calculations::get_estimated_irr,
     MessageTask, TaskType,
 };
 
@@ -175,37 +176,70 @@ async fn update_watchlist_task(
 async fn process_apartment(
     config: &Arc<Config>,
     oikotie: Oikotie,
-    apartment: InsertableApartment,
+    mut apartment: InsertableApartment,
     watchlist: Watchlist,
     consumer_number: i32,
 ) -> Result<()> {
-    // TODO
-    // 1. Check if apartment exists
-    // 2. if yes -> check if fresh
-    //                  if no -> update
-    // 3. if no -> fetch
+    // Check if aprtmantmend already exists in db
+    let apartment_from_db_res = db::apartment::get_apartment_by_card_id(config, apartment.card_id);
 
-    // Check if aprtmantmend already exists and is fresh
-    let apartment_in_db_res =
-        db::apartment::apartment_exists_and_is_fresh(config, apartment.card_id);
-
-    let apartment_in_db = match apartment_in_db_res {
-        Ok(b) => b,
+    let apartment_from_db = match apartment_from_db_res {
+        Ok(aps) => aps,
         Err(e) => return Err(e.into()),
     };
 
-    if !apartment_in_db {
-        let complete_apartment = process_apartment_calculations(config, apartment, oikotie).await;
-        return match complete_apartment {
-            Ok(ap) => {
+    if apartment_from_db.is_some() {
+        // Check if the enrty is fresh
+        let is_fresh = match db::apartment::apartment_is_fresh(config, apartment.card_id) {
+            Ok(b) => b,
+            Err(e) => return Err(e.into()),
+        };
+
+        if !is_fresh {
+            let new_irr = match get_estimated_irr(config, apartment.clone(), oikotie).await {
+                Ok(irr) => irr,
+                Err(e) => return Err(e.into()),
+            };
+
+            db::apartment::update_yield(config, apartment.card_id, new_irr);
+        }
+
+        // Check if there exists an index for target card for current watchlist
+        let index_exists = match db::watchlist_apartment_index::index_exists(
+            config,
+            watchlist.id,
+            apartment.card_id,
+        ) {
+            Ok(exists) => exists,
+            Err(e) => return Err(e.into()),
+        };
+
+        if !index_exists {
+            // Add to watchlist index if over target yield
+            if apartment_from_db
+                .unwrap()
+                .estimated_yield
+                .unwrap_or_default()
+                > watchlist.target_yield.unwrap_or_default()
+            {
+                db::watchlist_apartment_index::insert(config, watchlist.id, apartment.card_id);
+            }
+        }
+    } else {
+        // If there is no entry in the db for this apartmet -> calculate yield and insert
+        let irr = get_estimated_irr(config, apartment.clone(), oikotie).await;
+        return match irr {
+            Ok(irr) => {
+                apartment.estimated_yield = Some(irr);
+
                 // Insert into apartment table
-                db::apartment::insert(config, ap.clone());
+                db::apartment::insert(config, apartment.clone());
 
                 // Add to watchlist index if over target yield
-                if ap.estimated_yield.unwrap_or_default()
+                if apartment.estimated_yield.unwrap_or_default()
                     > watchlist.target_yield.unwrap_or_default()
                 {
-                    db::watchlist_apartment_index::insert(config, watchlist.id, ap.card_id);
+                    db::watchlist_apartment_index::insert(config, watchlist.id, apartment.card_id);
                 }
                 Ok(())
             }
@@ -217,36 +251,6 @@ async fn process_apartment(
                 Err(e)
             }
         };
-    }
-
-    // Check if there exists an index for target card for current watchlist
-    let index_exists_query =
-        db::watchlist_apartment_index::index_exists(config, watchlist.id, apartment.card_id);
-
-    let index_exists = match index_exists_query {
-        Ok(b) => b,
-        Err(e) => return Err(e.into()),
-    };
-
-    if !index_exists {
-        let apartment_result = db::apartment::get_apartment_by_card_id(config, apartment.card_id);
-        match apartment_result {
-            Ok(a) => {
-                if let Some(apartment) = a {
-                    // Add to watchlist index if over target yield
-                    if apartment.estimated_yield.unwrap_or_default()
-                        > watchlist.target_yield.unwrap_or_default()
-                    {
-                        db::watchlist_apartment_index::insert(
-                            config,
-                            watchlist.id,
-                            apartment.card_id,
-                        );
-                    }
-                }
-            }
-            Err(e) => return Err(e.into()),
-        }
     }
 
     Ok(())

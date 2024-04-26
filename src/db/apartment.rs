@@ -136,10 +136,7 @@ pub fn get_apartment_by_card_id(
     }
 }
 
-pub fn apartment_exists_and_is_fresh(
-    config: &Arc<Config>,
-    target_card_id: i32,
-) -> Result<bool, Error> {
+pub fn apartment_is_fresh(config: &Arc<Config>, target_card_id: i32) -> Result<bool, Error> {
     let conn = &mut establish_connection(config);
     let now = Utc::now().naive_local();
     let freshness_cutoff = now - Duration::days(5);
@@ -154,5 +151,21 @@ pub fn apartment_exists_and_is_fresh(
     match valid_apartments {
         Ok(aps) => Ok(aps.len() == 1),
         Err(e) => Err(e),
+    }
+}
+
+pub fn update_yield(config: &Arc<Config>, target_card_id: i32, new_yield: f64) {
+    let conn = &mut establish_connection(config);
+    let update_res = diesel::update(apartments)
+        .filter(apartments::card_id.eq(target_card_id))
+        .set(apartments::estimated_yield.eq(Some(new_yield)))
+        .execute(conn);
+
+    match update_res {
+        Ok(_n) => info!(
+            "Consumer set apartment with card_id {:?} to yield = {}",
+            target_card_id, new_yield
+        ),
+        Err(e) => error!("Error: {:?}", e),
     }
 }
