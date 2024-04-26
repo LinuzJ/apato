@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_channel::Receiver;
-use diesel::IntoSql;
+
 use futures::future::TryJoinAll;
 use log::{error, info};
 use std::{
@@ -142,7 +142,7 @@ async fn update_watchlist_task(
 
         let handle = tokio::task::spawn(async move {
             let _permit = permit;
-            return match process_apartment(
+            match process_apartment(
                 &config_clone,
                 oiko_clone,
                 apartment,
@@ -153,7 +153,7 @@ async fn update_watchlist_task(
             {
                 Ok(()) => Ok(()),
                 Err(e) => Err(e),
-            };
+            }
         });
 
         apartment_handles.push(handle);
@@ -198,7 +198,7 @@ async fn process_apartment(
         if !is_fresh {
             let new_irr = match get_estimated_irr(config, apartment.clone(), oikotie).await {
                 Ok(irr) => irr,
-                Err(e) => return Err(e.into()),
+                Err(e) => return Err(e),
             };
 
             db::apartment::update_yield(config, apartment.card_id, new_irr);

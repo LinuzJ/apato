@@ -451,7 +451,7 @@ async fn fetch_apartments(
 
     match response {
         Ok(re) => Ok(re.json().await?),
-        Err(e) => return Err(e),
+        Err(e) => Err(e),
     }
 }
 
