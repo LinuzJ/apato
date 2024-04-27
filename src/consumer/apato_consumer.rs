@@ -22,9 +22,10 @@ use crate::{
         watchlist::{SizeTarget, Watchlist},
     },
     oikotie::oikotie::Oikotie,
-    producer::calculations::get_estimated_irr,
     MessageTask, TaskType,
 };
+
+use super::calculations::get_estimated_irr;
 
 pub struct Consumer;
 

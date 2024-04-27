@@ -317,7 +317,7 @@ fn _map_domain(x: &Vec<f64>, _old: (f64, f64), _new: (f64, f64)) -> Vec<f64> {
 mod matrix_tests {
     use nalgebra::dmatrix;
 
-    use crate::producer::calculations::{companion_matrix, reverse_matrix};
+    use crate::consumer::calculations::{companion_matrix, reverse_matrix};
 
     use super::get_roots;
 
