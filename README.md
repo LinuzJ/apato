@@ -1,19 +1,22 @@
 # Apato (WIP)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/JernLinus)](https://x.com/JernLinus)
+
 ![Postgres](https://img.shields.io/badge/postgres-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)
 ![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white)
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
 
 Apato is a subscription service built to give you an edge on the competitive real estate market. Apato lets you subscribe to certain areas of interest and pings you whenever a listing matching your investment criteria appears on the market. No more tedious manual searching and long hours of excel models.
 
-### What does Apato do?
+### Features
 
-- Let's you subscribe to a watchlist with your investment criteria (target IRR, size, location).
-- Calculates the [Internal Rate of Return](https://en.wikipedia.org/wiki/Internal_rate_of_return) for all apartments listed in your watchlists.
+- **Get pinged when a investment opportunity appears on the market** Let's you subscribe to a watchlist with your investment criteria (target IRR, size, location).
+- **Get accurate IRR immediately** Calculates the [Internal Rate of Return](https://en.wikipedia.org/wiki/Internal_rate_of_return) for all apartments listed in your watchlists.
 - Notifies you whenever a new apartment that matches your criteria comes to market.
 - Can handle multiple users, from multiple chats.
 
-### How is Apato built?
+## How is Apato built?
 
 Technologies used:
 
@@ -22,11 +25,11 @@ Technologies used:
 - [Postgresql](https://www.postgresql.org/)
 - [Teloxide](https://github.com/teloxide/teloxide)
 
-Apato is designed with inspiration from the Producer-Consumer pattern. High level functionality goes approximately like this:
+Apato is designed using the Producer-Consumer pattern. High level functionality goes approximately like this:
 
 1. User subscribes to watchlist via Telegram.
-2. Producer does calculations for given watchlist.
-3. Consumer notices updates -> sends user update.
+2. Producer pushes update and calculation tasks to the task queue.
+3. Consumer processes tasks. Sends update or calculates IRR for all apartments of given watchlist.
 
 <img src="./apato_architecture.jpg">
 
@@ -43,7 +46,7 @@ docker-compose up -d
 Run migrations:
 
 ```
-diesel migration run
+diesel setup
 ```
 
 Run Apato:
@@ -89,3 +92,7 @@ Helper for all commands
 ```
    /help
 ```
+
+## Improvements
+
+TODO
