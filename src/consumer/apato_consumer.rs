@@ -228,7 +228,7 @@ async fn process_apartment(
     } else {
         // If there is no entry in the db for this apartmet -> calculate yield and insert
         let irr = get_estimated_irr(config, apartment.clone(), oikotie).await;
-        return match irr {
+        match irr {
             Ok(irr) => {
                 apartment.estimated_yield = Some(irr);
 
@@ -241,14 +241,13 @@ async fn process_apartment(
                 {
                     db::watchlist_apartment_index::insert(config, watchlist.id, apartment.card_id);
                 }
-                Ok(())
             }
             Err(e) => {
                 error!(
                     "Consumer Error: While processing calculations {} on consumer {}",
                     e, consumer_number
                 );
-                Err(e)
+                return Err(e);
             }
         };
     }

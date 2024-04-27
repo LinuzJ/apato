@@ -219,15 +219,13 @@ impl Oikotie {
         let mut apartments: Vec<InsertableApartment> = Vec::new();
 
         for card in cards {
-            let apartment_query =
-                db::apartment::get_apartment_by_card_id(&config, card.id.try_into().unwrap());
+            let existing_apartment =
+                match db::apartment::get_apartment_by_card_id(&config, card.id.try_into().unwrap())
+                {
+                    Ok(ap) => ap,
+                    Err(e) => return Err(e.into()),
+                };
 
-            let existing_apartment = match apartment_query {
-                Ok(ap) => ap,
-                Err(e) => return Err(e.into()),
-            };
-
-            // TODO fix when new watchlist with same location misses here. Make sure to add to index even through already in place
             let has_been_sent = has_been_sent_to_watchlist(config.clone(), &card, watchlist);
 
             if existing_apartment.is_none() && !has_been_sent {
