@@ -33,6 +33,15 @@ Apato is designed using the Producer-Consumer pattern. High level functionality 
 
 <img src="./apato_architecture.jpg">
 
+### IRR Calculations
+
+Apato uses real cash flow IRR calculations to estimate yield of investments.
+The source code can be found in `src/consumer/calculations.rs`.
+
+[IRR is a classic problem](https://www.investopedia.com/terms/i/irr.asp#:~:text=The%20Formula%20for,is%20as%20follows%3A) where one wants to find the roots of a polynomial of a high degree. In this case the degree is equal to the length of the loan (25 by default).
+
+Apato solves for the roots by evaluating the eigenvalues of the companion matrix to the given cashflow.
+
 ## Deployment
 
 To run locally, make sure to have Rust and Docker installed.
