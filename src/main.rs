@@ -2,26 +2,19 @@ extern crate chrono;
 extern crate diesel;
 extern crate tokio;
 
-mod bot;
-mod config;
-mod consumer;
-mod db;
-mod interest_rate;
-mod logger;
-mod models;
-mod oikotie;
-mod producer;
-
 use anyhow::Result;
 
-use bot::bot::ApatoTelegramBot;
-use config::Config;
-use consumer::apato_consumer::Consumer;
+use apato::{
+    bot::{self, bot::ApatoTelegramBot},
+    config::{self, Config},
+    consumer::{self, apato_consumer::Consumer},
+    logger::{self, setup_logger},
+    models,
+    producer::{self, apato_producer::Producer},
+    MessageTask,
+};
 use futures::future::TryJoinAll;
 use log::{error, info};
-use logger::setup_logger;
-use models::{apartment::Apartment, watchlist::Watchlist};
-use producer::apato_producer::Producer;
 use signal_hook::{
     consts::{SIGINT, SIGTERM},
     iterator::Signals,
@@ -32,21 +25,6 @@ use std::sync::{
 };
 
 use tokio::sync::broadcast;
-
-
-
-#[derive(Debug, Clone)]
-pub enum TaskType {
-    UpdateWatchlist,
-    SendMessage,
-}
-
-#[derive(Clone)]
-pub struct MessageTask {
-    task_type: TaskType,
-    watchlist: Watchlist,
-    apartment: Option<Apartment>,
-}
 
 #[tokio::main]
 async fn main() -> Result<()> {

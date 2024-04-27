@@ -25,6 +25,7 @@ use tokens::{get_tokens, OikotieTokens};
 use super::helpers::estimate_rent;
 use super::helpers::get_rent_regex;
 
+// TODO CLEAN UP THIS SHIT
 #[derive(Debug, Clone)]
 pub struct Location {
     pub id: i32,
