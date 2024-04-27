@@ -5,12 +5,11 @@ extern crate tokio;
 use anyhow::Result;
 
 use apato::{
-    bot::{self, bot::ApatoTelegramBot},
+    bot::{bot::ApatoTelegramBot},
     config::{self, Config},
-    consumer::{self, apato_consumer::Consumer},
-    logger::{self, setup_logger},
-    models,
-    producer::{self, apato_producer::Producer},
+    consumer::{apato_consumer::Consumer},
+    logger::{setup_logger},
+    producer::{apato_producer::Producer},
     MessageTask,
 };
 use futures::future::TryJoinAll;
