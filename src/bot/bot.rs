@@ -419,7 +419,7 @@ async fn send_formatted_message_all(
 
 pub fn format_apartment_message(watchlist: &Watchlist, apartment: &Apartment) -> String {
     format!(
-        "Found a new apartment matching your criteria for watchlist {} \n\n Location: {} \n Size: {} \n Price: {} \n Estimated Rent: {} \n Estimated Yield: {} \n Url: {}",
+        "Found a new apartment matching your criteria for watchlist {} \n\n Location: {} \n Size: {} \n Price: {} \n Estimated Rent: {} \n Estimated Yield: {:.2}% \n Url: {}",
         watchlist.id,
         apartment
             .location_name
