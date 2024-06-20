@@ -6,13 +6,11 @@ use std::{sync::Arc, vec};
 
 use crate::{
     config::Config, interest_rate::interest_rate_client, models::apartment::InsertableApartment,
-    oikotie::oikotie::Oikotie,
 };
 
 pub async fn get_estimated_irr(
     config: &Arc<Config>,
-    mut apartment: InsertableApartment,
-    mut oikotie: Oikotie,
+    apartment: InsertableApartment,
 ) -> Result<f64> {
     /*
        Calculate yield here
@@ -20,10 +18,6 @@ pub async fn get_estimated_irr(
        - Get interest rate from Nordea
        - Calculate
     */
-
-    let estimated_rent = oikotie.get_estimated_rent(&apartment).await?;
-
-    apartment.rent = Some(estimated_rent);
 
     let interest_rate_result = interest_rate_client::get_interest_rate(config).await;
     let interest_rate = match interest_rate_result {

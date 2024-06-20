@@ -230,13 +230,9 @@ impl Oikotie {
             let has_been_sent = has_been_sent_to_watchlist(config.clone(), &card, watchlist);
 
             if existing_apartment.is_none() && !has_been_sent {
-                let apartment: InsertableApartment = card_into_complete_apartment(
-                    self.tokens.as_ref().unwrap(),
-                    &card,
-                    location,
-                    Some(watchlist.id),
-                )
-                .await;
+                let apartment: InsertableApartment =
+                    card_into_complete_apartment(self.tokens.as_ref().unwrap(), &card, location)
+                        .await;
                 apartments.push(apartment);
             }
         }
@@ -458,7 +454,6 @@ async fn card_into_complete_apartment(
     tokens: &OikotieTokens,
     card: &Card,
     location: &Location,
-    optional_watchlist_id: Option<i32>,
 ) -> InsertableApartment {
     // TODO FIX THIS TO HANDLE 5.0 API
     // Fetch card data that includes total price information

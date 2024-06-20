@@ -1,0 +1,2 @@
+ALTER TABLE apartments ADD COLUMN watchlist_id INTEGER NOT NULL REFERENCES watchlists(id) ON DELETE CASCADE;
+

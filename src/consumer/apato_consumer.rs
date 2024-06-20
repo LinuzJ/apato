@@ -176,7 +176,7 @@ async fn update_watchlist_task(
 
 async fn process_apartment(
     config: &Arc<Config>,
-    oikotie: Oikotie,
+    mut oikotie: Oikotie,
     mut apartment: InsertableApartment,
     watchlist: Watchlist,
     consumer_number: i32,
@@ -197,7 +197,9 @@ async fn process_apartment(
         };
 
         if !is_fresh {
-            let new_irr = match get_estimated_irr(config, apartment.clone(), oikotie).await {
+            let estimated_rent = oikotie.get_estimated_rent(&apartment).await?;
+            apartment.rent = Some(estimated_rent);
+            let new_irr = match get_estimated_irr(config, apartment.clone()).await {
                 Ok(irr) => irr,
                 Err(e) => return Err(e),
             };
@@ -227,8 +229,11 @@ async fn process_apartment(
             }
         }
     } else {
+        let estimated_rent = oikotie.get_estimated_rent(&apartment).await?;
+        apartment.rent = Some(estimated_rent);
+
         // If there is no entry in the db for this apartmet -> calculate yield and insert
-        let irr = get_estimated_irr(config, apartment.clone(), oikotie).await;
+        let irr = get_estimated_irr(config, apartment.clone()).await;
         match irr {
             Ok(irr) => {
                 apartment.estimated_yield = Some(irr);

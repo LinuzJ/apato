@@ -10,7 +10,7 @@ use super::{
 };
 use crate::{
     config::Config,
-    models::{apartment::Apartment, apartment::InsertableApartment, watchlist::Watchlist},
+    models::{apartment::Apartment, apartment::InsertableApartment},
 };
 use anyhow::anyhow;
 use chrono::{Duration, NaiveDateTime, Utc};
@@ -32,11 +32,11 @@ pub fn insert(config: &Arc<Config>, apartment: InsertableApartment) {
 pub fn get_all_for_watchlist(
     config: &Arc<Config>,
     chat_id: i64,
-    watchlist_id: i32,
+    watchlist_id_: i32,
 ) -> Result<Vec<Apartment>, anyhow::Error> {
     let conn = &mut establish_connection(config);
 
-    if !check_chat(config, chat_id, watchlist_id) {
+    if !check_chat(config, chat_id, watchlist_id_) {
         return Err(anyhow!("Error: Wrong chat"));
     }
 
@@ -44,7 +44,7 @@ pub fn get_all_for_watchlist(
         .inner_join(
             apartments::table.on(watchlist_apartment_index::card_id.eq(apartments::card_id)),
         )
-        .filter(watchlist_apartment_index::watchlist_id.eq(watchlist_id))
+        .filter(watchlist_apartment_index::watchlist_id.eq(watchlist_id_))
         .select(Apartment::as_select())
         .load::<Apartment>(conn);
 
@@ -54,15 +54,15 @@ pub fn get_all_for_watchlist(
 pub fn get_matching_for_watchlist(
     config: &Arc<Config>,
     chat_id: i64,
-    watchlist_id: i32,
+    watchlist_id_: i32,
 ) -> Result<Vec<Apartment>, anyhow::Error> {
     let conn = &mut establish_connection(config);
 
-    if !check_chat(config, chat_id, watchlist_id) {
+    if !check_chat(config, chat_id, watchlist_id_) {
         return Err(anyhow!("Error: Wrong chat"));
     }
 
-    let target_watchlist = match get_watchlist(config, watchlist_id) {
+    let target_watchlist = match get_watchlist(config, watchlist_id_) {
         Ok(w) => w,
         Err(_e) => return Err(anyhow!("No watchlist wound with this name")),
     };
@@ -71,7 +71,7 @@ pub fn get_matching_for_watchlist(
         .inner_join(
             apartments::table.on(watchlist_apartment_index::card_id.eq(apartments::card_id)),
         )
-        .filter(watchlist_apartment_index::watchlist_id.eq(watchlist_id))
+        .filter(watchlist_apartment_index::watchlist_id.eq(watchlist_id_))
         .filter(apartments::estimated_yield.gt(target_watchlist.target_yield.unwrap()))
         .select(Apartment::as_select())
         .load::<Apartment>(conn);
