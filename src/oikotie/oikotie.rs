@@ -473,8 +473,6 @@ async fn card_into_complete_apartment(
         }
     };
 
-    let watchlist_id = optional_watchlist_id.unwrap_or(-1);
-
     InsertableApartment {
         card_id: card.id as i32,
         location_id: Some(location.id),
@@ -487,7 +485,6 @@ async fn card_into_complete_apartment(
         rent: Some(0),
         estimated_yield: Some(0.0),
         url: Some(card.url.clone()),
-        watchlist_id,
     }
 }
 

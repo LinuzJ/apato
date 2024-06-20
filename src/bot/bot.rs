@@ -57,7 +57,7 @@ pub enum Command {
         description = "Get all apartments/houses in watchlist that are above or equal to the target yield",
         parse_with = parse_string_to_int_message
     )]
-    GetAllValid(i32),
+    GetMatching(i32),
 }
 
 pub struct ApatoTelegramBot {
@@ -272,10 +272,10 @@ pub async fn handle_command(
                     send_formatted_message_all(tg, message, aps).await?;
                 }
             }
-            Command::GetAllValid(watchlist_id) => {
+            Command::GetMatching(watchlist_id) => {
                 let chat_id = message.chat.id.0;
                 let apartments_result =
-                    db::apartment::get_all_valid_for_watchlist(config, chat_id, watchlist_id);
+                    db::apartment::get_matching_for_watchlist(config, chat_id, watchlist_id);
                 let mut apartments: Option<Vec<Apartment>> = None;
 
                 match apartments_result {

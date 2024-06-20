@@ -2,8 +2,10 @@ use std::sync::Arc;
 
 use super::{
     establish_connection,
-    schema::apartments,
-    schema::apartments::dsl::*,
+    schema::{
+        apartments::{self, dsl::*},
+        watchlist_apartment_index,
+    },
     watchlist::{check_chat, get_watchlist},
 };
 use crate::{
@@ -30,69 +32,51 @@ pub fn insert(config: &Arc<Config>, apartment: InsertableApartment) {
 pub fn get_all_for_watchlist(
     config: &Arc<Config>,
     chat_id: i64,
-    watchlist: i32,
-) -> Result<Vec<Apartment>, anyhow::Error> {
-    let mut conn = establish_connection(config);
-    let correct_chat = check_chat(config, chat_id, watchlist);
-    if !correct_chat {
-        return Err(anyhow!("Error: Wrong chat"));
-    }
-
-    let all_apartments: Result<Vec<Apartment>, Error> = apartments::table
-        .filter(watchlist_id.eq(watchlist))
-        .select(apartments::table::all_columns())
-        .load(&mut conn);
-
-    Ok(all_apartments?)
-}
-
-pub fn get_all_valid_for_watchlist(
-    config: &Arc<Config>,
-    chat_id: i64,
-    watchlist: i32,
+    watchlist_id: i32,
 ) -> Result<Vec<Apartment>, anyhow::Error> {
     let conn = &mut establish_connection(config);
-    let correct_chat = check_chat(config, chat_id, watchlist);
 
-    if !correct_chat {
+    if !check_chat(config, chat_id, watchlist_id) {
         return Err(anyhow!("Error: Wrong chat"));
     }
 
-    let potential_watchlist = get_watchlist(config, watchlist);
+    let apartments_in_watchlist = watchlist_apartment_index::table
+        .inner_join(
+            apartments::table.on(watchlist_apartment_index::card_id.eq(apartments::card_id)),
+        )
+        .filter(watchlist_apartment_index::watchlist_id.eq(watchlist_id))
+        .select(Apartment::as_select())
+        .load::<Apartment>(conn);
 
-    let target_watchlist = match potential_watchlist {
+    Ok(apartments_in_watchlist?)
+}
+
+pub fn get_matching_for_watchlist(
+    config: &Arc<Config>,
+    chat_id: i64,
+    watchlist_id: i32,
+) -> Result<Vec<Apartment>, anyhow::Error> {
+    let conn = &mut establish_connection(config);
+
+    if !check_chat(config, chat_id, watchlist_id) {
+        return Err(anyhow!("Error: Wrong chat"));
+    }
+
+    let target_watchlist = match get_watchlist(config, watchlist_id) {
         Ok(w) => w,
         Err(_e) => return Err(anyhow!("No watchlist wound with this name")),
     };
 
-    // let valid_apartments: Result<Vec<Apartment>, Error> =
-    //     Apartment::belonging_to(&watchlist_from_db)
-    //         .select(Apartment::as_select())
-    //         .load(conn)?;
-    let valid_apartments: Result<Vec<Apartment>, Error> = apartments::table
-        .filter(apartments::watchlist_id.eq(target_watchlist.id))
+    let matching_apartments = watchlist_apartment_index::table
+        .inner_join(
+            apartments::table.on(watchlist_apartment_index::card_id.eq(apartments::card_id)),
+        )
+        .filter(watchlist_apartment_index::watchlist_id.eq(watchlist_id))
         .filter(apartments::estimated_yield.gt(target_watchlist.target_yield.unwrap()))
         .select(Apartment::as_select())
-        .load(conn);
+        .load::<Apartment>(conn);
 
-    Ok(valid_apartments?)
-}
-
-pub fn _get_new_for_watchlist(
-    config: &Arc<Config>,
-    watchlist: Watchlist,
-    interval_start_time: NaiveDateTime,
-) -> Result<Vec<Apartment>, anyhow::Error> {
-    let conn = &mut establish_connection(config);
-
-    let valid_apartments: Result<Vec<Apartment>, Error> = apartments::table
-        .filter(apartments::watchlist_id.eq(watchlist.id))
-        .filter(apartments::estimated_yield.gt(watchlist.target_yield.unwrap()))
-        .filter(apartments::created_at.gt(interval_start_time))
-        .select(Apartment::as_select())
-        .load(conn);
-
-    Ok(valid_apartments?)
+    Ok(matching_apartments?)
 }
 
 pub fn _get_apartments_within_period(

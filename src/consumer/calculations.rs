@@ -30,9 +30,8 @@ pub async fn get_estimated_irr(
         Ok(r) => r,
         Err(_e) => {
             return Err(anyhow!(
-                "Failed to fetch interest for apartment {} in watchlist {}",
+                "Failed to fetch interest for apartment {}",
                 apartment.card_id,
-                apartment.watchlist_id
             ));
         }
     };

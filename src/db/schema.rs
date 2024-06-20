@@ -14,7 +14,6 @@ diesel::table! {
         rent -> Nullable<Int4>,
         estimated_yield -> Nullable<Float8>,
         url -> Nullable<Text>,
-        watchlist_id -> Int4,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
     }
@@ -46,7 +45,6 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(apartments -> watchlists (watchlist_id));
 diesel::joinable!(watchlist_apartment_index -> watchlists (watchlist_id));
 
 diesel::allow_tables_to_appear_in_same_query!(

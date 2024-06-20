@@ -16,7 +16,6 @@ pub struct InsertableApartment {
     pub rent: Option<i32>,
     pub estimated_yield: Option<f64>,
     pub url: Option<String>,
-    pub watchlist_id: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, Associations, Identifiable, Queryable, Selectable)]
@@ -36,7 +35,6 @@ pub struct Apartment {
     pub rent: Option<i32>,
     pub estimated_yield: Option<f64>,
     pub url: Option<String>,
-    pub watchlist_id: i32,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }

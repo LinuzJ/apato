@@ -181,7 +181,7 @@ async fn process_apartment(
     watchlist: Watchlist,
     consumer_number: i32,
 ) -> Result<()> {
-    // Check if aprtmantmend already exists in db
+    // Check if apartment already exists in db
     let apartment_from_db_res = db::apartment::get_apartment_by_card_id(config, apartment.card_id);
 
     let apartment_from_db = match apartment_from_db_res {
@@ -190,7 +190,7 @@ async fn process_apartment(
     };
 
     if apartment_from_db.is_some() {
-        // Check if the enrty is fresh
+        // Check if the entry is fresh
         let is_fresh = match db::apartment::apartment_is_fresh(config, apartment.card_id) {
             Ok(b) => b,
             Err(e) => return Err(e.into()),
