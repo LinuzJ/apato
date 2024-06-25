@@ -9,7 +9,7 @@ use crate::{
 };
 use anyhow::Result;
 use lazy_static::lazy_static;
-use log::error;
+use log::{error, info};
 use regex::Regex;
 use std::sync::Arc;
 use teloxide::{
@@ -136,7 +136,7 @@ pub async fn handle_command(
                     .await?;
                 }
 
-                // Check if watchlist for this place already exists for this chat
+                // Check if watchlist for this location already exists
                 let existing =
                     db::watchlist::get_for_chat_and_location(config, chat_id, &args.location);
 
@@ -147,22 +147,26 @@ pub async fn handle_command(
                     )
                     .await?;
 
-                    match db::watchlist::update_yield(
-                        config,
-                        existing[0].id,
-                        args.target_yield.unwrap().into(),
-                    )
-                    .await
-                    {
-                        Ok(()) => (), // TODO Clean up this :D
-                        Err(e) => {
-                            tg.send_message(
-                                message.chat.id,
-                                format!("Error while updating yield: {}", e),
-                            )
-                            .await?;
-                        }
-                    };
+                    if args.target_yield.is_some() {
+                        match db::watchlist::update_yield(
+                            config,
+                            existing[0].id,
+                            args.target_yield.unwrap().into(),
+                        )
+                        .await
+                        {
+                            Ok(()) => {
+                                info!("Updated yield for watchlist {}", existing[0].id);
+                            }
+                            Err(e) => {
+                                tg.send_message(
+                                    message.chat.id,
+                                    format!("Error while updating yield: {}", e),
+                                )
+                                .await?;
+                            }
+                        };
+                    }
 
                     return Ok(());
                 }

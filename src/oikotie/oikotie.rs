@@ -25,7 +25,6 @@ use tokens::{get_tokens, OikotieTokens};
 use super::helpers::estimate_rent;
 use super::helpers::get_rent_regex;
 
-// TODO CLEAN UP THIS SHIT
 #[derive(Debug, Clone)]
 pub struct Location {
     pub id: i32,
@@ -35,15 +34,15 @@ pub struct Location {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct LocationApiCard {
+struct LocationCard {
     name: String,
     card_id: u32,
     card_type: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct LocationApiResponseItem {
-    card: LocationApiCard,
+struct LocationResponse {
+    card: LocationCard,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -56,6 +55,12 @@ struct Card {
     price: String,
     published: String,
     size: f32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CardsResponse {
+    found: u32,
+    cards: Vec<Card>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -92,45 +97,28 @@ impl AdData {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct OitkotieCardsApiResponse {
-    found: u32,
-    cards: Vec<Card>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct OitkotieCardApiResponse {
+struct CardResponse {
     card_id: i32,
     ad_data: AdData,
     price_data: Price,
     status: i32,
 }
 
-pub struct RentalData {
-    pub rent: i32,
-    pub size: f32,
-}
-
-// Custom deserialization for price field as it can be int or String
-fn price_int_or_string<'de, D: Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
-    Ok(match Value::deserialize(deserializer)? {
-        Value::String(s) => s.parse().map_err(de::Error::custom)?,
-        Value::Number(num) => {
-            (num.as_f64().ok_or(de::Error::custom("Invalid number"))? as i32).to_string()
-        }
-        _ => return Err(de::Error::custom("wrong type")),
-    })
-}
-
-impl OitkotieCardApiResponse {
-    fn empty() -> OitkotieCardApiResponse {
-        OitkotieCardApiResponse {
+impl CardResponse {
+    fn empty() -> CardResponse {
+        CardResponse {
             card_id: 0,
             ad_data: AdData::empty(),
             price_data: Price::empty(),
             status: 0,
         }
     }
+}
+
+pub struct RentalData {
+    pub rent: i32,
+    pub size: f32,
 }
 
 #[derive(Debug)]
@@ -161,7 +149,7 @@ impl Oikotie {
         //     self.tokens = get_tokens().await;
         // }
 
-        let response: Result<Vec<LocationApiResponseItem>, reqwest::Error> =
+        let response: Result<Vec<LocationResponse>, reqwest::Error> =
             fetch_location_id(self.tokens.as_ref().unwrap(), location_string).await;
 
         let potential_locations = match response {
@@ -209,7 +197,7 @@ impl Oikotie {
             name: watchlist.location_name.clone(),
         };
 
-        let cards_response: Result<OitkotieCardsApiResponse, reqwest::Error> =
+        let cards_response: Result<CardsResponse, reqwest::Error> =
             fetch_apartments(self.tokens.as_ref().unwrap(), location.clone(), size, false).await;
 
         let cards = match cards_response {
@@ -260,7 +248,7 @@ impl Oikotie {
             name: location.name.clone(),
         };
 
-        let cards_response: Result<OitkotieCardsApiResponse, reqwest::Error> = fetch_apartments(
+        let cards_response: Result<CardsResponse, reqwest::Error> = fetch_apartments(
             self.tokens.as_ref().unwrap(),
             location.clone(),
             size_range,
@@ -321,7 +309,7 @@ impl Oikotie {
 async fn fetch_location_id(
     tokens: &OikotieTokens,
     location_string: &str,
-) -> Result<Vec<LocationApiResponseItem>, reqwest::Error> {
+) -> Result<Vec<LocationResponse>, reqwest::Error> {
     let client: reqwest::Client = reqwest::Client::new();
 
     // Create request with needed token headers
@@ -350,7 +338,7 @@ async fn fetch_location_id(
         .send()
         .await;
 
-    let api_response: Vec<LocationApiResponseItem> = match response {
+    let api_response: Vec<LocationResponse> = match response {
         Ok(re) => re.json().await?,
         Err(e) => return Err(e),
     };
@@ -361,7 +349,7 @@ async fn fetch_location_id(
 async fn fetch_card(
     tokens: &OikotieTokens,
     card_id: String,
-) -> Result<OitkotieCardApiResponse, reqwest::Error> {
+) -> Result<CardResponse, reqwest::Error> {
     let client: reqwest::Client = reqwest::Client::new();
 
     // Create request with needed token headers
@@ -389,7 +377,7 @@ async fn fetch_card(
         .send()
         .await;
 
-    let api_response: OitkotieCardApiResponse = match response {
+    let api_response: CardResponse = match response {
         Ok(re) => re.json().await?,
         Err(e) => return Err(e),
     };
@@ -402,7 +390,7 @@ async fn fetch_apartments(
     location: Location,
     target_size: SizeTarget,
     get_rentals: bool,
-) -> Result<OitkotieCardsApiResponse, reqwest::Error> {
+) -> Result<CardsResponse, reqwest::Error> {
     let min_size = target_size.min.unwrap_or_default().to_string();
     let max_size = target_size.max.unwrap_or_default().to_string();
     let locations: String = create_location_string(location.id, location.level, location.name);
@@ -457,14 +445,14 @@ async fn card_into_complete_apartment(
 ) -> InsertableApartment {
     // TODO FIX THIS TO HANDLE 5.0 API
     // Fetch card data that includes total price information
-    let card_data: OitkotieCardApiResponse = match fetch_card(tokens, card.id.to_string()).await {
+    let card_data: CardResponse = match fetch_card(tokens, card.id.to_string()).await {
         Ok(c) => c,
         Err(_e) => {
             error!(
                 "Did not fetch card data for card {:?}. Error is {:?}",
                 card.id, _e
             );
-            OitkotieCardApiResponse::empty()
+            CardResponse::empty()
         }
     };
 
@@ -498,4 +486,14 @@ fn has_been_sent_to_watchlist(config: Arc<Config>, card: &Card, watchlist: &Watc
     }
 
     apartments[0].has_been_sent
+}
+
+fn price_int_or_string<'de, D: Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
+    Ok(match Value::deserialize(deserializer)? {
+        Value::String(s) => s.parse().map_err(de::Error::custom)?,
+        Value::Number(num) => {
+            (num.as_f64().ok_or(de::Error::custom("Invalid number"))? as i32).to_string()
+        }
+        _ => return Err(de::Error::custom("wrong type")),
+    })
 }
