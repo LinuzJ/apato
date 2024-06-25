@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::config::Config;
 use crate::db;
-use crate::db::watchlist_apartment_index::get_watchlist_apartment_connector;
+use crate::db::apartment_watchlist::get_watchlist_apartment_connector;
 use crate::models::apartment::InsertableApartment;
 use crate::models::watchlist::SizeTarget;
 use crate::models::watchlist::Watchlist;

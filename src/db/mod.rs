@@ -1,7 +1,7 @@
 pub mod apartment;
+pub mod apartment_watchlist;
 pub mod schema;
 pub mod watchlist;
-pub mod watchlist_apartment_index;
 
 use std::sync::Arc;
 

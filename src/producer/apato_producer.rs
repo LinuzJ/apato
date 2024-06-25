@@ -94,7 +94,7 @@ async fn check_for_new_apartments_to_send(
     producer_sender: Sender<MessageTask>,
 ) -> Result<()> {
     let unsent_apartments =
-        db::watchlist_apartment_index::get_unsent_apartments(config, &watchlist.clone());
+        db::apartment_watchlist::get_unsent_apartments(config, &watchlist.clone());
 
     let new_targets = match unsent_apartments {
         Ok(v) => v,

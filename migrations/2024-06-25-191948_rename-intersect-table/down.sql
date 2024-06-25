@@ -1,0 +1,1 @@
+ALTER TABLE apartment_watchlist RENAME TO watchlist_apartment_index;

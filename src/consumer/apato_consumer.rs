@@ -96,7 +96,7 @@ async fn send_message_task(
                 let formatted = format_apartment_message(&watchlist, &ap);
                 bot.send_message(ChatId(chat_id), formatted).await?;
 
-                db::watchlist_apartment_index::set_to_read(config, &watchlist, apartment.card_id);
+                db::apartment_watchlist::set_to_read(config, &watchlist, apartment.card_id);
             }
         }
         Err(e) => return Err(e.into()),
@@ -208,14 +208,11 @@ async fn process_apartment(
         }
 
         // Check if there exists an index for target card for current watchlist
-        let index_exists = match db::watchlist_apartment_index::index_exists(
-            config,
-            watchlist.id,
-            apartment.card_id,
-        ) {
-            Ok(exists) => exists,
-            Err(e) => return Err(e.into()),
-        };
+        let index_exists =
+            match db::apartment_watchlist::index_exists(config, watchlist.id, apartment.card_id) {
+                Ok(exists) => exists,
+                Err(e) => return Err(e.into()),
+            };
 
         if !index_exists {
             // Add to watchlist index if over target yield
@@ -225,7 +222,7 @@ async fn process_apartment(
                 .unwrap_or_default()
                 > watchlist.target_yield.unwrap_or_default()
             {
-                db::watchlist_apartment_index::insert(config, watchlist.id, apartment.card_id);
+                db::apartment_watchlist::insert(config, watchlist.id, apartment.card_id);
             }
         }
     } else {
@@ -245,7 +242,7 @@ async fn process_apartment(
                 if apartment.estimated_yield.unwrap_or_default()
                     > watchlist.target_yield.unwrap_or_default()
                 {
-                    db::watchlist_apartment_index::insert(config, watchlist.id, apartment.card_id);
+                    db::apartment_watchlist::insert(config, watchlist.id, apartment.card_id);
                 }
             }
             Err(e) => {

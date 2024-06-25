@@ -1,6 +1,17 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    apartment_watchlist (id) {
+        id -> Int4,
+        watchlist_id -> Int4,
+        card_id -> Int4,
+        has_been_sent -> Bool,
+        created_at -> Timestamptz,
+        updated_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     apartments (id) {
         id -> Int4,
         card_id -> Int4,
@@ -14,17 +25,6 @@ diesel::table! {
         rent -> Nullable<Int4>,
         estimated_yield -> Nullable<Float8>,
         url -> Nullable<Text>,
-        created_at -> Timestamptz,
-        updated_at -> Timestamptz,
-    }
-}
-
-diesel::table! {
-    watchlist_apartment_index (id) {
-        id -> Int4,
-        watchlist_id -> Int4,
-        card_id -> Int4,
-        has_been_sent -> Bool,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
     }
@@ -45,10 +45,10 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(watchlist_apartment_index -> watchlists (watchlist_id));
+diesel::joinable!(apartment_watchlist -> watchlists (watchlist_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    apartment_watchlist,
     apartments,
-    watchlist_apartment_index,
     watchlists,
 );

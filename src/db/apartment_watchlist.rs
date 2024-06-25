@@ -4,16 +4,13 @@ use diesel::{prelude::*, result::Error};
 use log::{error, info};
 
 use super::{
-    establish_connection, schema::watchlist_apartment_index,
-    schema::watchlist_apartment_index::dsl::*,
+    establish_connection, schema::apartment_watchlist, schema::apartment_watchlist::dsl::*,
 };
 use crate::{
     config::Config,
     models::{
+        apartment_watchlist_model::{InsertableWatchlistApartmentIndex, WatchlistApartmentIndex},
         watchlist::Watchlist,
-        watchlist_apartment_index_model::{
-            InsertableWatchlistApartmentIndex, WatchlistApartmentIndex,
-        },
     },
 };
 
@@ -26,7 +23,7 @@ pub fn insert(config: &Arc<Config>, target_watchlist_id: i32, target_card_id: i3
         has_been_sent: false,
     };
 
-    match diesel::insert_into(watchlist_apartment_index::table)
+    match diesel::insert_into(apartment_watchlist::table)
         .values(insertable)
         .execute(&mut conn)
     {
@@ -42,12 +39,11 @@ pub fn get_watchlist_apartment_connector(
 ) -> Result<Vec<WatchlistApartmentIndex>, Error> {
     let conn = &mut establish_connection(config);
 
-    let valid_connectors: Result<Vec<WatchlistApartmentIndex>, Error> =
-        watchlist_apartment_index::table
-            .filter(watchlist_apartment_index::card_id.eq(target_card_id))
-            .filter(watchlist_apartment_index::watchlist_id.eq(watchlist.id))
-            .select(WatchlistApartmentIndex::as_select())
-            .load(conn);
+    let valid_connectors: Result<Vec<WatchlistApartmentIndex>, Error> = apartment_watchlist::table
+        .filter(apartment_watchlist::card_id.eq(target_card_id))
+        .filter(apartment_watchlist::watchlist_id.eq(watchlist.id))
+        .select(WatchlistApartmentIndex::as_select())
+        .load(conn);
 
     valid_connectors
 }
@@ -58,9 +54,9 @@ pub fn get_unsent_apartments(
 ) -> Result<Vec<i32>, Error> {
     let conn = &mut establish_connection(config);
 
-    let valid_connectors: Result<Vec<i32>, Error> = watchlist_apartment_index::table
-        .filter(watchlist_apartment_index::has_been_sent.eq(false))
-        .filter(watchlist_apartment_index::watchlist_id.eq(watchlist.id))
+    let valid_connectors: Result<Vec<i32>, Error> = apartment_watchlist::table
+        .filter(apartment_watchlist::has_been_sent.eq(false))
+        .filter(apartment_watchlist::watchlist_id.eq(watchlist.id))
         .select(card_id)
         .load::<i32>(conn);
 
@@ -70,7 +66,7 @@ pub fn get_unsent_apartments(
 pub fn set_to_read(config: &Arc<Config>, watchlist: &Watchlist, target_card_id: i32) {
     let conn = &mut establish_connection(config);
 
-    match diesel::update(watchlist_apartment_index)
+    match diesel::update(apartment_watchlist)
         .set(has_been_sent.eq(true))
         .execute(conn)
     {
@@ -89,13 +85,12 @@ pub fn index_exists(
 ) -> Result<bool, Error> {
     let conn = &mut establish_connection(config);
 
-    let valid_apartments: Result<Vec<WatchlistApartmentIndex>, Error> =
-        watchlist_apartment_index::table
-            .filter(watchlist_apartment_index::card_id.eq(target_card_id))
-            .filter(watchlist_apartment_index::watchlist_id.eq(target_watchlist_id))
-            .select(WatchlistApartmentIndex::as_select())
-            .limit(1)
-            .load(conn);
+    let valid_apartments: Result<Vec<WatchlistApartmentIndex>, Error> = apartment_watchlist::table
+        .filter(apartment_watchlist::card_id.eq(target_card_id))
+        .filter(apartment_watchlist::watchlist_id.eq(target_watchlist_id))
+        .select(WatchlistApartmentIndex::as_select())
+        .limit(1)
+        .load(conn);
 
     match valid_apartments {
         Ok(aps) => Ok(aps.len() == 1),

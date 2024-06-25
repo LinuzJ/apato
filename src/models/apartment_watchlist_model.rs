@@ -3,7 +3,7 @@ use chrono::NaiveDateTime;
 use diesel::prelude::*;
 
 #[derive(Insertable)]
-#[diesel(table_name = crate::db::schema::watchlist_apartment_index)]
+#[diesel(table_name = crate::db::schema::apartment_watchlist)]
 pub struct InsertableWatchlistApartmentIndex {
     pub watchlist_id: i32,
     pub card_id: i32,
@@ -12,7 +12,7 @@ pub struct InsertableWatchlistApartmentIndex {
 
 #[derive(Debug, Clone, PartialEq, Associations, Identifiable, Queryable, Selectable)]
 #[diesel(belongs_to(Watchlist, foreign_key = id))]
-#[diesel(table_name = crate::db::schema::watchlist_apartment_index)]
+#[diesel(table_name = crate::db::schema::apartment_watchlist)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct WatchlistApartmentIndex {
     pub id: i32,

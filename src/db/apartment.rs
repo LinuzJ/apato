@@ -3,8 +3,8 @@ use std::sync::Arc;
 use super::{
     establish_connection,
     schema::{
+        apartment_watchlist,
         apartments::{self, dsl::*},
-        watchlist_apartment_index,
     },
     watchlist::{check_chat, get_watchlist},
 };
@@ -40,11 +40,9 @@ pub fn get_all_for_watchlist(
         return Err(anyhow!("Error: Wrong chat"));
     }
 
-    let apartments_in_watchlist = watchlist_apartment_index::table
-        .inner_join(
-            apartments::table.on(watchlist_apartment_index::card_id.eq(apartments::card_id)),
-        )
-        .filter(watchlist_apartment_index::watchlist_id.eq(watchlist_id_))
+    let apartments_in_watchlist = apartment_watchlist::table
+        .inner_join(apartments::table.on(apartment_watchlist::card_id.eq(apartments::card_id)))
+        .filter(apartment_watchlist::watchlist_id.eq(watchlist_id_))
         .select(Apartment::as_select())
         .load::<Apartment>(conn);
 
@@ -67,11 +65,9 @@ pub fn get_matching_for_watchlist(
         Err(_e) => return Err(anyhow!("No watchlist wound with this name")),
     };
 
-    let matching_apartments = watchlist_apartment_index::table
-        .inner_join(
-            apartments::table.on(watchlist_apartment_index::card_id.eq(apartments::card_id)),
-        )
-        .filter(watchlist_apartment_index::watchlist_id.eq(watchlist_id_))
+    let matching_apartments = apartment_watchlist::table
+        .inner_join(apartments::table.on(apartment_watchlist::card_id.eq(apartments::card_id)))
+        .filter(apartment_watchlist::watchlist_id.eq(watchlist_id_))
         .filter(apartments::estimated_yield.gt(target_watchlist.target_yield.unwrap()))
         .select(Apartment::as_select())
         .load::<Apartment>(conn);
