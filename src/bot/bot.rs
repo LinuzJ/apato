@@ -11,7 +11,7 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use log::{error, info};
 use regex::Regex;
-use std::sync::Arc;
+use std::{env::args, sync::Arc};
 use teloxide::{
     dispatching::{DefaultKey, HandlerExt, UpdateFilterExt},
     dptree,
@@ -34,7 +34,7 @@ pub enum Command {
     Help,
 
     #[command(
-        description = "Subscribe to a location watchlist. Provide the args in the following format: < /sub {location name} size={size (m^2)} yield={target yield}. > \n\n Example: \n '< /sub ullanlinna size=60 yield=10 >",
+        description = "Subscribe to a location watchlist. Provide the args in the following format: < /sub {location name} min_size={size (m^2)} max_size={size (m^2)} yield={target yield}. > \n\n Example: \n '< /sub ullanlinna min_size=50 max_size=60 yield=10 >",
         parse_with = parse_subscribe_message
     )]
     Sub(SubscriptionArgs),
@@ -128,7 +128,11 @@ pub async fn handle_command(
             Command::Sub(args) => {
                 let chat_id = message.chat.id.0;
 
-                if args.location.is_empty() && args.target_yield.is_none() {
+                if args.location.is_empty()
+                    || args.target_yield.is_none()
+                    || args.min_size.is_none()
+                    || args.max_size.is_none()
+                {
                     tg.send_message(
                         message.chat.id,
                         "Please provide the arguments needed. Check /help for guidance.",
