@@ -47,6 +47,7 @@ impl Producer {
     }
 }
 
+/// Creates and sends UpdateWatchlist tasks to the message queue for each watchlist..
 async fn handle_watchlists_tasks(config: &Arc<Config>, producer_sender: Sender<MessageTask>) {
     let watchlists = watchlist::get_all(&config.clone());
     for watchlist in watchlists {
@@ -60,6 +61,7 @@ async fn handle_watchlists_tasks(config: &Arc<Config>, producer_sender: Sender<M
     }
 }
 
+/// Creates and sends SendMessage tasks to the message queue for each watchlist.
 async fn handle_update_message_tasks(
     config: &Arc<Config>,
     bot: Arc<Bot>,
@@ -70,29 +72,31 @@ async fn handle_update_message_tasks(
     for watchlist in watchlists {
         let chat_id = watchlist.chat_id;
 
-        match check_for_new_apartments_to_send(
-            config,
-            watchlist,
-            chat_id,
-            bot.clone(),
-            producer_sender.clone(),
-        )
-        .await
-        {
+        match find_apartments_to_send(config, watchlist.clone(), chat_id, bot.clone()).await {
             // TODO FIX
-            Ok(_) => {}
+            Ok(apartments) => {
+                for ap in apartments {
+                    let task = MessageTask {
+                        task_type: TaskType::SendMessage,
+                        watchlist: watchlist.clone(),
+                        apartment: Some(ap),
+                    };
+                    // TODO fix
+                    let _ = producer_sender.send(task).await;
+                }
+            }
             Err(_e) => {}
         }
     }
 }
 
-async fn check_for_new_apartments_to_send(
+/// Finds apartments from given watchlist that matches criteria and has not been sent.
+async fn find_apartments_to_send(
     config: &Arc<Config>,
     watchlist: Watchlist,
     chat_id: i64,
     bot: Arc<Bot>,
-    producer_sender: Sender<MessageTask>,
-) -> Result<()> {
+) -> Result<Vec<Apartment>> {
     let unsent_apartments =
         db::apartment_watchlist::get_unsent_apartments(config, &watchlist.clone());
 
@@ -101,7 +105,7 @@ async fn check_for_new_apartments_to_send(
         Err(e) => {
             error!("Consumer Error while fetching new targets: {:?}", e);
             bot.send_message(ChatId(chat_id), format!("{}", e)).await?;
-            return Ok(());
+            return Ok(Vec::new());
         }
     };
 
@@ -119,15 +123,5 @@ async fn check_for_new_apartments_to_send(
             Err(e) => return Err(e.into()),
         }
     }
-
-    for ap in aps {
-        let task = MessageTask {
-            task_type: TaskType::SendMessage,
-            watchlist: watchlist.clone(),
-            apartment: Some(ap),
-        };
-        // TODO fix
-        let _ = producer_sender.send(task).await;
-    }
-    Ok(())
+    Ok(aps)
 }

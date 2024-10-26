@@ -1,6 +1,7 @@
 use crate::{
+    bot::subscribe::{check_args, subscribe_to_watchlist},
     config::Config,
-    db,
+    db::{self},
     models::{
         apartment::Apartment,
         watchlist::{SizeTarget, Watchlist},
@@ -9,9 +10,9 @@ use crate::{
 };
 use anyhow::Result;
 use lazy_static::lazy_static;
-use log::{error, info};
+use log::error;
 use regex::Regex;
-use std::{env::args, sync::Arc};
+use std::sync::Arc;
 use teloxide::{
     dispatching::{DefaultKey, HandlerExt, UpdateFilterExt},
     dptree,
@@ -126,92 +127,41 @@ pub async fn handle_command(
                     .await;
             }
             Command::Sub(args) => {
-                let chat_id = message.chat.id.0;
+                let chat_id = message.chat.id;
 
-                if args.location.is_empty()
-                    || args.target_yield.is_none()
-                    || args.min_size.is_none()
-                    || args.max_size.is_none()
-                {
+                let error = check_args(args.clone());
+
+                if error.is_empty() {
                     tg.send_message(
-                        message.chat.id,
+                        chat_id,
                         "Please provide the arguments needed. Check /help for guidance.",
                     )
                     .await?;
                 }
 
-                // Check if watchlist for this location already exists
-                let existing =
-                    db::watchlist::get_for_chat_and_location(config, chat_id, &args.location);
+                let location = args.location;
+                let message_target_yield = args.target_yield.unwrap().into();
+                let size: (f64, f64) =
+                    (args.min_size.unwrap().into(), args.max_size.unwrap().into());
 
-                if !existing.is_empty() {
-                    tg.send_message(
-                        message.chat.id,
-                        "You already have a watchlist for this location. Updating target yield...",
-                    )
-                    .await?;
-
-                    if args.target_yield.is_some() {
-                        match db::watchlist::update_yield(
-                            config,
-                            existing[0].id,
-                            args.target_yield.unwrap().into(),
-                        )
-                        .await
-                        {
-                            Ok(()) => {
-                                info!("Updated yield for watchlist {}", existing[0].id);
-                            }
-                            Err(e) => {
-                                tg.send_message(
-                                    message.chat.id,
-                                    format!("Error while updating yield: {}", e),
-                                )
-                                .await?;
-                            }
-                        };
-                    }
-
-                    return Ok(());
-                }
-
-                // Create new watchlist
-                let mut oikotie_client: Oikotie = Oikotie::new().await;
-                let location_id_response = oikotie_client.get_location_id(&args.location).await;
-                let mut location: Option<Location> = None;
-
-                match location_id_response {
-                    Ok(location_id) => {
-                        location = Some(Location {
-                            id: location_id as i32,
-                            level: 4, // TODO maybe not just hardcode this
-                            name: args.location,
-                        })
-                    }
+                match subscribe_to_watchlist(
+                    size,
+                    message_target_yield,
+                    location,
+                    chat_id,
+                    tg,
+                    config.clone(),
+                )
+                .await
+                {
+                    Ok(()) => {}
                     Err(e) => {
-                        let err_str = e.to_string();
-                        tg.send_message(message.chat.id, err_str).await?;
-                    }
-                }
-
-                let mut target_size = SizeTarget::empty();
-                if let Some(min_size) = args.min_size {
-                    target_size.min = Some(min_size as i32)
-                }
-                if let Some(max_size) = args.max_size {
-                    target_size.max = Some(max_size as i32)
-                }
-
-                if let Some(loc) = location {
-                    db::watchlist::insert(
-                        config,
-                        loc,
-                        chat_id,
-                        Some(args.target_yield.unwrap_or(0) as f64),
-                        target_size,
-                    );
-                    tg.send_message(message.chat.id, "Added to your watchlist!")
+                        tg.send_message(
+                            chat_id,
+                            format!("Could not subscribe. Please try again: {}", e),
+                        )
                         .await?;
+                    }
                 }
             }
             Command::Unsub(watchlist_id) => {
