@@ -1,5 +1,5 @@
 mod matrix_tests {
-    use apato::consumer::calculations::{self, companion_matrix, get_roots, reverse_matrix};
+    use apato::consumer::calculations::{companion_matrix, get_roots, reverse_matrix};
     use nalgebra::dmatrix;
     #[test]
     fn roots_test_1() {

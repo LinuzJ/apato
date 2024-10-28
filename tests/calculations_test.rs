@@ -13,7 +13,7 @@ mod yield_calculations {
     #[test]
     fn calculate_basic_yield_wip() {
         let config = Arc::new(config::create_test_config());
-        let yield_ = calculate_irr(&config, 100000 as f64, 800 as f64, 200 as f64, 2.00);
+        let yield_ = calculate_irr(&config, 100000_f64, 800_f64, 200_f64, 2.00);
         let yield_rounded = (yield_ * 1000.0).round() / 1000.0;
         assert_eq!(yield_rounded, 25.996)
     }

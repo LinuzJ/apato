@@ -4,9 +4,8 @@ use crate::{
     db::{self},
     models::{
         apartment::Apartment,
-        watchlist::{SizeTarget, Watchlist},
+        watchlist::Watchlist,
     },
-    oikotie::oikotie::{Location, Oikotie},
 };
 use anyhow::Result;
 use lazy_static::lazy_static;
