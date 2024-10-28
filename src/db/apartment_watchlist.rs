@@ -78,7 +78,7 @@ pub fn set_to_read(config: &Arc<Config>, watchlist: &Watchlist, target_card_id: 
     }
 }
 
-pub fn index_exists(
+pub fn exists(
     config: &Arc<Config>,
     target_watchlist_id: i32,
     target_card_id: i32,

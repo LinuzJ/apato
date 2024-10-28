@@ -8,6 +8,10 @@ use crate::{
     config::Config, interest_rate::interest_rate_client, models::apartment::InsertableApartment,
 };
 
+/// Calculate estimated IRR.
+///
+/// Fetches current interest rate from Nordea.
+/// Calculates IRR.
 pub async fn get_estimated_irr(
     config: &Arc<Config>,
     apartment: InsertableApartment,
@@ -39,6 +43,11 @@ pub async fn get_estimated_irr(
     Ok(irr)
 }
 
+/// Calculates IRR.
+///
+/// This function does a basic Discounted Cash Flow
+/// analysis of the given situation and then solves
+/// the IRR.
 pub fn calculate_irr(
     config: &Arc<Config>,
     price: f64,
@@ -87,7 +96,7 @@ pub fn calculate_irr(
     let irr: f64 = irr(yearly_cash_flows).unwrap_or_default() * 100.0;
 
     // Make sure the value is within reasonable limits
-    if !(-50.0..=50.0).contains(&irr) {
+    if !(-60.0..=60.0).contains(&irr) {
         return 0.0;
     }
 
@@ -110,17 +119,17 @@ fn get_depreciation(config: &Arc<Config>) -> f64 {
     -(config.avg_renovation_costs as f64 / config.loan_duration_years as f64)
 }
 
+/// Calculate the fixed yearly payment for a loan or investment.
+///
+/// Arguments:
+/// interest_rate -- the yearly interest rate.
+/// periods -- the total number of payment periods (in years).
+/// pv   -- the present value, or the total amount of the loan or investment.
+/// fv   -- the future value, or the remaining balance after all payments have been made (default 0).
+///
+/// Returns:
+/// The fixed yearly payment amount.
 pub fn pmt(interest_rate: f64, periods: f64, pv: f64) -> f64 {
-    // Calculate the fixed yearly payment for a loan or investment.
-
-    // Arguments:
-    // interest_rate -- the yearly interest rate.
-    // periods -- the total number of payment periods (in years).
-    // pv   -- the present value, or the total amount of the loan or investment.
-    // fv   -- the future value, or the remaining balance after all payments have been made (default 0).
-
-    // Returns:
-    // The fixed yearly payment amount.
     if interest_rate == 0.0 {
         -pv / periods
     } else {
@@ -128,55 +137,53 @@ pub fn pmt(interest_rate: f64, periods: f64, pv: f64) -> f64 {
     }
 }
 
+/// Calculate the future value of an investment or loan after a specified number of periods.
+///
+/// Arguments:
+/// interest_rate -- the yearly interest rate.
+/// periods -- the period number to calculate the future value for.
+/// c    -- the fixed yearly payment.
+/// pv   -- the present value, or the total amount of the loan or investment.
+///
+/// Returns:
+/// The future value after the specified number of periods.
 pub fn future_value(interest_rate: f64, periods: f64, c: f64, pv: f64) -> f64 {
-    // Calculate the future value of an investment or loan after a specified number of periods.
-
-    // Arguments:
-    // interest_rate -- the yearly interest rate.
-    // periods -- the period number to calculate the future value for.
-    // c    -- the fixed yearly payment.
-    // pv   -- the present value, or the total amount of the loan or investment.
-
-    // Returns:
-    // The future value after the specified number of periods.
     -(c * ((1.0 + interest_rate).powf(periods) - 1.0) / interest_rate
         + pv * (1.0 + interest_rate).powf(periods))
 }
 
-// Calculates the amount of interest that should be payed at a specific period.
+/// Calculates the amount of a payment goes to interest on the loan principal at period {period} / {total_period}
+///
+/// Arguments:
+/// interest_rate -- the yearly interest rate.
+/// period -- current period
+/// total_period -- total periods
+/// present_value -- the present value, or the total amount of the loan.
 pub fn interest_payment_for_period(
     interest_rate: f64,
     period: f64,
     total_periods: f64,
     present_value: f64,
 ) -> f64 {
-    // Calculates the amount of a payment goes to interest on the loan principal at period {period} / {total_period}
-
-    // Arguments:
-    // interest_rate -- the yearly interest rate.
-    // period -- current period
-    // total_period -- total periods
-    // present_value -- the present value, or the total amount of the loan.
     let total_payment = pmt(interest_rate, total_periods, present_value);
     let future_pv = future_value(interest_rate, period - 1.0, total_payment, present_value);
 
     future_pv * interest_rate
 }
 
-// Calculates the amount of principal that should be payed at a specific period.
+/// Calculates the amount of a payment goes to pay back the loan principal at period {period} / {total_period}
+///
+/// Arguments:
+/// interest_rate -- the yearly interest rate.
+/// period -- current period
+/// total_period -- total periods
+/// present_value -- the present value, or the total amount of the loan.
 pub fn principal_payment_for_period(
     interest_rate: f64,
     period: f64,
     total_periods: f64,
     present_value: f64,
 ) -> f64 {
-    // Calculates the amount of a payment goes to pay back the loan principal at period {period} / {total_period}
-
-    // Arguments:
-    // interest_rate -- the yearly interest rate.
-    // period -- current period
-    // total_period -- total periods
-    // present_value -- the present value, or the total amount of the loan.
     let total_payment = pmt(interest_rate, total_periods, present_value);
     let interest_part =
         interest_payment_for_period(interest_rate, period, total_periods, present_value);
@@ -190,11 +197,10 @@ pub fn valuation_increase(config: &Arc<Config>, price: f64, year: u32) -> f64 {
     this_year - last_year
 }
 
+/// Calculate the inner rate of return for the given cashflow.
+/// Arguments:
+/// cash_flow -- Vector with yearly cash-flow, including the year 0 investment.
 pub fn irr(cash_flow: Vec<f64>) -> Option<f64> {
-    // Calculate the inner rate of return for the given cashflow.
-    // Arguments:
-    // cash_flow -- Vector with yearly cash-flow, including the year 0 investment.
-
     let all_roots = get_roots(cash_flow);
     let mut potential_roots: Vec<f64> = vec![];
 
@@ -223,10 +229,12 @@ pub fn irr(cash_flow: Vec<f64>) -> Option<f64> {
     Some(min_root.0 - 1.0)
 }
 
-// https://math.mit.edu/~edelman/publications/polynomial_roots.pdf
-// https://web.mit.edu/18.06/www/Spring17/Eigenvalue-Polynomials.pdf
-// Find the roots of the polynomial given.
-// Roots are the eigenvalues of the companion matrix of the polynomial.
+/// Solve the polynomial with the given coeffcients.
+///
+/// https://math.mit.edu/~edelman/publications/polynomial_roots.pdf
+/// https://web.mit.edu/18.06/www/Spring17/Eigenvalue-Polynomials.pdf
+/// Find the roots of the polynomial given.
+/// Roots are the eigenvalues of the companion matrix of the polynomial.
 pub fn get_roots(coeffs: Vec<f64>) -> Vec<f64> {
     let n = coeffs.len() - 1;
 

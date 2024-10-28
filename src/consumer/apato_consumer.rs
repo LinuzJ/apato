@@ -105,6 +105,19 @@ async fn send_message_task(
     Ok(())
 }
 
+/// Updates the given watchist.
+///
+/// 1) Fetches apartments from Oikotie
+/// 2)
+///
+/// # Examples
+///
+/// ```
+/// // You can have rust code between fences inside the comments
+/// // If you pass --test to `rustdoc`, it will even test it for you!
+/// use doc::Person;
+/// let person = Person::new("name");
+/// ```
 async fn update_watchlist_task(
     config: &Arc<Config>,
     watchlist: Watchlist,
@@ -174,6 +187,18 @@ async fn update_watchlist_task(
     Ok(())
 }
 
+/// Process one apartment.
+///
+/// Checks if apartment already exists in database
+///     If yes:
+///         Is it fresh?
+///             If not:
+///                 Recalculate Yield
+///         Has it already been added to the target index?
+///             If not:
+///                 Add
+///     If not:
+///         Calculate yield and add to target index
 async fn process_apartment(
     config: &Arc<Config>,
     mut oikotie: Oikotie,
@@ -207,9 +232,9 @@ async fn process_apartment(
             db::apartment::update_yield(config, apartment.card_id, new_irr);
         }
 
-        // Check if there exists an index for target card for current watchlist
+        // Check if this aparment existst in target apartments
         let index_exists =
-            match db::apartment_watchlist::index_exists(config, watchlist.id, apartment.card_id) {
+            match db::apartment_watchlist::exists(config, watchlist.id, apartment.card_id) {
                 Ok(exists) => exists,
                 Err(e) => return Err(e.into()),
             };
@@ -227,11 +252,10 @@ async fn process_apartment(
         }
     } else {
         let estimated_rent = oikotie.get_estimated_rent(&apartment).await?;
+
         apartment.rent = Some(estimated_rent);
 
-        // If there is no entry in the db for this apartmet -> calculate yield and insert
-        let irr = get_estimated_irr(config, apartment.clone()).await;
-        match irr {
+        match get_estimated_irr(config, apartment.clone()).await {
             Ok(irr) => {
                 apartment.estimated_yield = Some(irr);
 
@@ -247,8 +271,8 @@ async fn process_apartment(
             }
             Err(e) => {
                 error!(
-                    "Consumer Error: While processing calculations {} on consumer {}",
-                    e, consumer_number
+                    "Consumer Error: While processing calculations on consumer {}: {}",
+                    consumer_number, e
                 );
                 return Err(e);
             }

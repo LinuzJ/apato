@@ -197,7 +197,7 @@ impl Oikotie {
         };
 
         let cards_response: Result<CardsResponse, reqwest::Error> =
-            fetch_apartments(self.tokens.as_ref().unwrap(), location.clone(), size, false).await;
+            fetch_apartments_for_sale(self.tokens.as_ref().unwrap(), location.clone(), size).await;
 
         let cards = match cards_response {
             Ok(c) => c.cards,
@@ -227,57 +227,47 @@ impl Oikotie {
         Ok(apartments)
     }
 
-    /*
-       Fecthes all rental apartments for a certain location
-    */
+    /// Fecthes all rental apartments for a certain location
     pub async fn get_rental_data(
         &mut self,
         location: &Location,
         size_range: SizeTarget,
     ) -> Result<Vec<RentalData>> {
-        if self.tokens.is_none() {
-            self.tokens = get_tokens().await;
-        }
-
-        let is_handling_rent = true;
-
         let location: Location = Location {
             id: location.id,
             level: location.level,
             name: location.name.clone(),
         };
 
-        let cards_response: Result<CardsResponse, reqwest::Error> = fetch_apartments(
-            self.tokens.as_ref().unwrap(),
-            location.clone(),
-            size_range,
-            is_handling_rent,
-        )
-        .await;
+        let oikotie_rental_cards_response: Result<CardsResponse, reqwest::Error> =
+            fetch_apartments_for_rent(self.tokens.as_ref().unwrap(), location.clone(), size_range)
+                .await;
 
-        let cards = match cards_response {
+        let oikotie_rental_cards = match oikotie_rental_cards_response {
             Ok(c) => c.cards,
             Err(_e) => return Err(anyhow!("Error while fetching cards")),
         };
 
-        let cards_iter: std::slice::Iter<'_, Card> = cards.iter();
-        let mut data: Vec<RentalData> = Vec::new();
+        let oikotie_rental_cards_iter: std::slice::Iter<'_, Card> = oikotie_rental_cards.iter();
+        let mut rents: Vec<RentalData> = Vec::new();
 
-        for card in cards_iter {
+        for card in oikotie_rental_cards_iter {
             let rent = get_rent_regex(card.price.clone());
             let rent_data = RentalData {
                 rent,
                 size: card.size,
             };
-            data.push(rent_data);
+            rents.push(rent_data);
         }
 
-        Ok(data)
+        Ok(rents)
     }
 
-    /*
-       Calculates and returns the estimated rent for a given location
-    */
+    /// Calculates the estimated rent fo the given apartment
+    ///
+    /// Depends on a call to Oikotie to get the nearby rental apartments.
+    /// Estimated the rent using heuristics.
+    /// TODO: Make rent evaluation ML based.
     pub async fn get_estimated_rent(
         &mut self,
         apartment: &InsertableApartment,
