@@ -8,6 +8,8 @@ use crate::models::watchlist::SizeTarget;
 use crate::models::watchlist::Watchlist;
 use crate::oikotie::helpers;
 use crate::oikotie::tokens;
+use crate::send_request;
+use crate::URLS;
 
 use anyhow::anyhow;
 use anyhow::{Error, Result};
@@ -24,6 +26,7 @@ use tokens::{get_tokens, OikotieTokens};
 
 use super::helpers::estimate_rent;
 use super::helpers::get_rent_regex;
+use super::oikotie_types::CardTypes;
 
 #[derive(Debug, Clone)]
 pub struct Location {
@@ -145,10 +148,6 @@ impl Oikotie {
        Use Oikotie's search API to find location ID based on text query
     */
     pub async fn get_location_id(&mut self, location_string: &str) -> Result<u32> {
-        // if self.tokens.is_none() {
-        //     self.tokens = get_tokens().await;
-        // }
-
         let response: Result<Vec<LocationResponse>, reqwest::Error> =
             fetch_location_id(self.tokens.as_ref().unwrap(), location_string).await;
 
@@ -385,6 +384,22 @@ async fn fetch_card(
     Ok(api_response)
 }
 
+async fn fetch_apartments_for_sale(
+    tokens: &OikotieTokens,
+    location: Location,
+    target_size: SizeTarget,
+) -> Result<CardsResponse, reqwest::Error> {
+    fetch_apartments(tokens, location, target_size, false).await
+}
+
+async fn fetch_apartments_for_rent(
+    tokens: &OikotieTokens,
+    location: Location,
+    target_size: SizeTarget,
+) -> Result<CardsResponse, reqwest::Error> {
+    fetch_apartments(tokens, location, target_size, true).await
+}
+
 async fn fetch_apartments(
     tokens: &OikotieTokens,
     location: Location,
@@ -395,13 +410,18 @@ async fn fetch_apartments(
     let max_size = target_size.max.unwrap_or_default().to_string();
     let locations: String = create_location_string(location.id, location.level, location.name);
 
-    let oikotie_cards_api_url = "https://asunnot.oikotie.fi/api/cards";
-    let client: reqwest::Client = reqwest::Client::new();
-
     let mut params: Vec<(&str, &str)> = vec![
-        ("cardType", if get_rentals { "101" } else { "100" }),
+        (
+            "cardType",
+            if get_rentals {
+                CardTypes::RENT
+            } else {
+                CardTypes::SELL
+            },
+        ),
         ("locations", &locations),
     ];
+
     // Add size requirements to query if given
     if !min_size.is_empty() {
         params.push(("size[min]", &min_size));
@@ -425,14 +445,7 @@ async fn fetch_apartments(
         Err(_e) => todo!(),
     };
 
-    let response = client
-        .get(oikotie_cards_api_url)
-        .query(&params)
-        .headers(headers)
-        .send()
-        .await;
-
-    match response {
+    match send_request(crate::RequestType::GET, URLS::CARDS, params, headers).await {
         Ok(re) => Ok(re.json().await?),
         Err(e) => Err(e),
     }
