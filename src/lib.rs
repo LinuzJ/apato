@@ -1,4 +1,3 @@
-use log::info;
 use models::{apartment::Apartment, watchlist::Watchlist};
 use reqwest::header::HeaderMap;
 

@@ -191,7 +191,7 @@ impl Oikotie {
 
         let cards = match cards_response {
             Ok(c) => c.cards,
-            Err(e) => return Err(e.into()),
+            Err(e) => return Err(e),
         };
 
         let mut apartments: Vec<InsertableApartment> = Vec::new();
