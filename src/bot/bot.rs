@@ -2,10 +2,7 @@ use crate::{
     bot::subscribe::{check_args, subscribe_to_watchlist},
     config::Config,
     db::{self},
-    models::{
-        apartment::Apartment,
-        watchlist::Watchlist,
-    },
+    models::{apartment::Apartment, watchlist::Watchlist},
 };
 use anyhow::Result;
 use lazy_static::lazy_static;
@@ -130,7 +127,7 @@ pub async fn handle_command(
 
                 let error = check_args(args.clone());
 
-                if error.is_empty() {
+                if !error.is_empty() {
                     tg.send_message(
                         chat_id,
                         "Please provide the arguments needed. Check /help for guidance.",

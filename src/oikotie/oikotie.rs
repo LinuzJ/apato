@@ -9,6 +9,7 @@ use crate::models::watchlist::Watchlist;
 use crate::oikotie::helpers;
 use crate::oikotie::tokens;
 use crate::send_request;
+use crate::RequestType;
 use crate::URLS;
 
 use anyhow::anyhow;
@@ -35,17 +36,17 @@ pub struct Location {
     pub name: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct LocationCard {
-    name: String,
-    card_id: u32,
-    card_type: u32,
+pub struct LocationCard {
+    pub name: String,
+    pub card_id: u32,
+    pub card_type: u32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct LocationResponse {
-    card: LocationCard,
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LocationResponse {
+    pub card: LocationCard,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -144,41 +145,30 @@ impl Oikotie {
         }
     }
 
-    /*
-       Use Oikotie's search API to find location ID based on text query
-    */
-    pub async fn get_location_id(&mut self, location_string: &str) -> Result<u32> {
-        let response: Result<Vec<LocationResponse>, reqwest::Error> =
-            fetch_location_id(self.tokens.as_ref().unwrap(), location_string).await;
-
-        let potential_locations = match response {
-            Ok(l) => Some(l),
+    /// Use Oikotie's search API to find location ID based on text query.
+    pub async fn get_locations_for_zip_code(
+        &mut self,
+        zip_code: &str,
+    ) -> Result<Vec<LocationResponse>> {
+        let locations = match fetch_location_id(self.tokens.as_ref().unwrap(), zip_code).await {
+            Ok(l) => l,
             Err(e) => {
                 error!("Error while fetching location id from Oikotie: {}", e);
                 return Err(e.into());
             }
         };
 
-        if let Some(locations) = potential_locations {
-            if locations.is_empty() {
-                return Err(anyhow!(
-                    "Did not find any valid location for '{}', please try again!",
-                    location_string
-                ));
-            }
-
-            Ok(locations[0].card.card_id)
-        } else {
-            Err(anyhow!(
+        if locations.is_empty() {
+            return Err(anyhow!(
                 "Did not find any valid location for '{}', please try again!",
-                location_string
-            ))
+                zip_code
+            ));
         }
+
+        Ok(locations)
     }
 
-    /*
-       Fecthes all apartments for a certain location
-    */
+    /// Fecthes all apartments for a certain location.
     pub async fn get_apartments(
         &mut self,
         config: Arc<Config>,
@@ -191,12 +181,12 @@ impl Oikotie {
 
         // TODO: Benchmark this function. Why so slow?
         let location: &Location = &Location {
-            id: watchlist.id,
+            id: watchlist.location_id,
             level: watchlist.location_level,
             name: watchlist.location_name.clone(),
         };
 
-        let cards_response: Result<CardsResponse, reqwest::Error> =
+        let cards_response: Result<CardsResponse> =
             fetch_apartments_for_sale(self.tokens.as_ref().unwrap(), location.clone(), size).await;
 
         let cards = match cards_response {
@@ -239,7 +229,7 @@ impl Oikotie {
             name: location.name.clone(),
         };
 
-        let oikotie_rental_cards_response: Result<CardsResponse, reqwest::Error> =
+        let oikotie_rental_cards_response: Result<CardsResponse> =
             fetch_apartments_for_rent(self.tokens.as_ref().unwrap(), location.clone(), size_range)
                 .await;
 
@@ -297,13 +287,10 @@ impl Oikotie {
 
 async fn fetch_location_id(
     tokens: &OikotieTokens,
-    location_string: &str,
+    zip_code: &str,
 ) -> Result<Vec<LocationResponse>, reqwest::Error> {
-    let client: reqwest::Client = reqwest::Client::new();
-
-    // Create request with needed token headers
-    let oikotie_cards_api_url = String::from("https://asunnot.oikotie.fi/api/5.0/location/");
-    let params: Vec<(&str, &str)> = vec![("query", location_string), ("card_type", "4")];
+    // Use location level 5 here to get ZIP CODE locations
+    let params: Vec<(&str, &str)> = vec![("query", zip_code), ("card_type", "5")];
 
     let mut headers: HeaderMap = HeaderMap::new();
     match HeaderValue::from_str(&tokens.loaded) {
@@ -319,13 +306,8 @@ async fn fetch_location_id(
         Err(_e) => todo!(),
     };
 
+    let response = send_request(RequestType::GET, URLS::LOCATION, params, headers).await;
     // Perform the actual request
-    let response = client
-        .get(oikotie_cards_api_url)
-        .query(&params)
-        .headers(headers)
-        .send()
-        .await;
 
     let api_response: Vec<LocationResponse> = match response {
         Ok(re) => re.json().await?,
@@ -378,39 +360,32 @@ async fn fetch_apartments_for_sale(
     tokens: &OikotieTokens,
     location: Location,
     target_size: SizeTarget,
-) -> Result<CardsResponse, reqwest::Error> {
-    fetch_apartments(tokens, location, target_size, false).await
+) -> Result<CardsResponse> {
+    fetch_apartments(tokens, location, target_size, String::from(CardTypes::SELL)).await
 }
 
 async fn fetch_apartments_for_rent(
     tokens: &OikotieTokens,
     location: Location,
     target_size: SizeTarget,
-) -> Result<CardsResponse, reqwest::Error> {
-    fetch_apartments(tokens, location, target_size, true).await
+) -> Result<CardsResponse> {
+    fetch_apartments(tokens, location, target_size, String::from(CardTypes::RENT)).await
 }
 
 async fn fetch_apartments(
     tokens: &OikotieTokens,
     location: Location,
     target_size: SizeTarget,
-    get_rentals: bool,
-) -> Result<CardsResponse, reqwest::Error> {
+    card_type: String,
+) -> Result<CardsResponse> {
     let min_size = target_size.min.unwrap_or_default().to_string();
     let max_size = target_size.max.unwrap_or_default().to_string();
-    let locations: String = create_location_string(location.id, location.level, location.name);
+    let location = create_location_string(location.id, location.level, location.name);
 
-    let mut params: Vec<(&str, &str)> = vec![
-        (
-            "cardType",
-            if get_rentals {
-                CardTypes::RENT
-            } else {
-                CardTypes::SELL
-            },
-        ),
-        ("locations", &locations),
-    ];
+    let mut params: Vec<(&str, &str)> = Vec::new();
+
+    params.push(("cardType", &card_type));
+    params.push(("locations", &location));
 
     // Add size requirements to query if given
     if !min_size.is_empty() {
@@ -435,10 +410,38 @@ async fn fetch_apartments(
         Err(_e) => todo!(),
     };
 
-    match send_request(crate::RequestType::GET, URLS::CARDS, params, headers).await {
-        Ok(re) => Ok(re.json().await?),
-        Err(e) => Err(e),
+    let response = send_request(
+        crate::RequestType::GET,
+        URLS::CARDS,
+        params.clone(),
+        headers.clone(),
+    )
+    .await?;
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_default();
+        error!(
+            "HTTP Error: {} - {} for config - url: {}\n, params: {:?}\n headers: {:?}",
+            status,
+            error_text,
+            URLS::CARDS,
+            params,
+            headers
+        );
+        return Err(anyhow!(
+            "{} {}",
+            reqwest::StatusCode::from_u16(status.as_u16()).unwrap(),
+            format!("HTTP request failed with status {}", status),
+        ));
     }
+
+    let response_text = response.text().await?;
+    if response_text.trim().is_empty() {
+        error!("{}", "Empty response body");
+    }
+
+    let api_response = serde_json::from_str::<CardsResponse>(&response_text)?;
+    Ok(api_response)
 }
 
 async fn card_into_complete_apartment(

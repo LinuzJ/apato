@@ -1,3 +1,4 @@
+use log::info;
 use models::{apartment::Apartment, watchlist::Watchlist};
 use reqwest::header::HeaderMap;
 
@@ -33,7 +34,8 @@ pub enum RequestType {
 pub struct URLS;
 
 impl URLS {
-    pub const CARDS: &str = "https://asunnot.oikotie.fi/api/cards";
+    pub const CARDS: &str = "https://asunnot.oikotie.fi/api/5.0/cards";
+    pub const LOCATION: &str = "https://asunnot.oikotie.fi/api/5.0/location";
 }
 
 pub async fn send_request(
@@ -44,21 +46,13 @@ pub async fn send_request(
 ) -> Result<reqwest::Response, reqwest::Error> {
     let client: reqwest::Client = reqwest::Client::new();
 
-    let response = if request_type == RequestType::GET {
-        client
-            .get(url)
-            .query(&params)
-            .headers(headers)
-            .send()
-            .await?
+    let request_builder = if request_type == RequestType::GET {
+        client.get(url).query(&params)
     } else {
-        client
-            .post(url)
-            .json(&params)
-            .headers(headers)
-            .send()
-            .await?
+        client.post(url).json(&params)
     };
+
+    let response = request_builder.headers(headers).send().await?;
 
     Ok(response)
 }

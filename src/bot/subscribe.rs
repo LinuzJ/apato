@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use log::info;
+use log::{error, info};
 use teloxide::{prelude::Requester, types::ChatId, Bot};
 
 use crate::{
@@ -60,32 +60,49 @@ pub async fn subscribe_to_watchlist(
 
     // Create new watchlist
     let mut oikotie_client: Oikotie = Oikotie::new().await;
-    let location_id_response = oikotie_client.get_location_id(&location).await;
-    let mut watchlist_location: Option<Location> = None;
+    let locations_response = oikotie_client.get_locations_for_zip_code(&location).await;
 
-    match location_id_response {
-        Ok(location_id) => {
-            watchlist_location = Some(Location {
-                id: location_id as i32,
-                level: 4, // TODO maybe not just hardcode this
-                name: location,
-            })
-        }
+    let locations = match locations_response {
+        Ok(locations_) => locations_,
         Err(e) => {
             let err_str = e.to_string();
-            tg.send_message(chat_id, err_str).await?;
+            error!("Error while fetching locations: {}", err_str);
+            tg.send_message(chat_id, "Something went wrong, please try again...")
+                .await?;
+            Vec::new()
         }
+    };
+
+    if locations.is_empty() {
+        tg.send_message(
+            chat_id,
+            "Did not find any location with that zip code. Please try again :)",
+        )
+        .await?;
+        return Ok(());
     }
+
+    let zip_code_card = locations[0].card.clone();
+    let watchlist_location = Location {
+        id: zip_code_card.card_id as i32,
+        level: zip_code_card.card_type as i32,
+        name: zip_code_card.name,
+    };
 
     let (min_size, max_size) = size;
     let mut target_size = SizeTarget::empty();
     target_size.min = Some(min_size as i32);
     target_size.max = Some(max_size as i32);
 
-    if let Some(loc) = watchlist_location {
-        db::watchlist::insert(&config, loc, chat_id.0, Some(new_target_yield), target_size);
-        tg.send_message(chat_id, "Added to your watchlist!").await?;
-    }
+    db::watchlist::insert(
+        &config,
+        watchlist_location,
+        chat_id.0,
+        Some(new_target_yield),
+        target_size,
+    );
 
+    tg.send_message(chat_id, "Added to your watchlists!")
+        .await?;
     Ok(())
 }
