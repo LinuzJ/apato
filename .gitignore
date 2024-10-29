@@ -13,3 +13,7 @@ output.log
 config.toml
 
 *.DS_Store
+.venv
+__pycache__
+*.csv
+*.keras
