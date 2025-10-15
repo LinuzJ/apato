@@ -112,7 +112,7 @@ async fn send_message_task(
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// // You can have rust code between fences inside the comments
 /// // If you pass --test to `rustdoc`, it will even test it for you!
 /// use doc::Person;
@@ -214,7 +214,7 @@ async fn process_apartment(
         Err(e) => return Err(e.into()),
     };
 
-    if apartment_from_db.is_some() {
+    if let Some(mut existing_apartment) = apartment_from_db {
         // Check if the entry is fresh
         let is_fresh = match db::apartment::apartment_is_fresh(config, apartment.card_id) {
             Ok(b) => b,
@@ -230,6 +230,7 @@ async fn process_apartment(
             };
 
             db::apartment::update_yield(config, apartment.card_id, new_irr);
+            existing_apartment.estimated_yield = Some(new_irr);
         }
 
         // Check if this aparment existst in target apartments
@@ -241,10 +242,7 @@ async fn process_apartment(
 
         if !index_exists {
             // Add to watchlist index if over target yield
-            if apartment_from_db
-                .unwrap()
-                .estimated_yield
-                .unwrap_or_default()
+            if existing_apartment.estimated_yield.unwrap_or_default()
                 > watchlist.target_yield.unwrap_or_default()
             {
                 db::apartment_watchlist::insert(config, watchlist.id, apartment.card_id);
