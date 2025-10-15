@@ -374,7 +374,7 @@ async fn send_formatted_message_all_valid(
         .enumerate()
         .map(|(index, apartment)| {
             format!(
-                "{}: \n Location: {} \n Size: {:.1} m² \n Price: {} € \n Estimated Rent: {} € \n Estimated Yield: {:.2}% \n Url: {}",
+                "{}: \n Location: {} \n Size: {:.1} m^2 \n Price: {} EUR \n Estimated Rent: {} EUR \n Estimated Yield: {:.2}% \n Url: {}",
                 index,
                 apartment
                     .location_name
@@ -412,12 +412,12 @@ async fn send_formatted_message_all(
         .enumerate()
         .map(|(index, apartment)| {
             format!(
-                "{}: \n Location: {} \n Size: {:.1} m² \n Price: {} € \n Estimated Yield: {:.2}%",
+                "{}: \n Location: {} \n Size: {:.1} m^2 \n Price: {} EUR \n Estimated Yield: {:.2}%",
                 index,
                 apartment
                     .location_name
                     .as_ref()
-                    .unwrap_or(&\"N/A\".to_string()),
+                    .unwrap_or(&"N/A".to_string()),
                 apartment.size.unwrap_or(0.0),
                 apartment.price.unwrap_or(0),
                 apartment.estimated_yield.unwrap_or(0.0)
@@ -432,7 +432,7 @@ async fn send_formatted_message_all(
 
 pub fn format_apartment_message(watchlist: &Watchlist, apartment: &Apartment) -> String {
     format!(
-        "Found a new apartment matching your criteria for watchlist {} \n\n Location: {} \n Size: {:.1} m² \n Price: {} € \n Estimated Rent: {} € \n Estimated Yield: {:.2}% \n Url: {}",
+        "Found a new apartment matching your criteria for watchlist {} \n\n Location: {} \n Size: {:.1} m^2 \n Price: {} EUR \n Estimated Rent: {} EUR \n Estimated Yield: {:.2}% \n Url: {}",
         watchlist.id,
         apartment
             .location_name
