@@ -12,3 +12,6 @@ avg_estimated_rent_increase_per_year = 1
 estimated_yearly_apartment_price_increase = 1
 avg_renovation_costs = 5000
 tax = 30
+
+# Optional ML service endpoint (set to null or omit to use heuristic fallback)
+ml_service_url = "http://localhost:8000"

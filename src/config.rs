@@ -19,6 +19,7 @@ pub struct Config {
     pub estimated_yearly_apartment_price_increase: u32,
     pub avg_renovation_costs: u32,
     pub tax: u32,
+    pub ml_service_url: Option<String>,
 }
 
 pub fn create_test_config() -> Config {
@@ -35,6 +36,7 @@ pub fn create_test_config() -> Config {
         estimated_yearly_apartment_price_increase: 2,
         avg_renovation_costs: 5000,
         tax: 30,
+        ml_service_url: None,
     }
 }
 

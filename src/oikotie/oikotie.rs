@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::config::Config;
 use crate::db;
 use crate::db::apartment_watchlist::get_watchlist_apartment_connector;
+use crate::ml_client::{self, RentPredictionRequest};
 use crate::models::apartment::InsertableApartment;
 use crate::models::watchlist::SizeTarget;
 use crate::models::watchlist::Watchlist;
@@ -15,14 +16,13 @@ use crate::URLS;
 use anyhow::anyhow;
 use anyhow::{Context, Result};
 use helpers::create_location_string;
-use log::error;
+use log::{error, warn};
 
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::de;
 use serde::Deserializer;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use serde_this_or_that::as_u64;
 use tokens::{get_tokens, OikotieTokens};
 
 use super::helpers::estimate_rent;
@@ -53,11 +53,15 @@ pub struct LocationResponse {
 struct Card {
     id: u32,
     url: String,
-    description: String,
-    rooms: u32,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    rooms: Option<u32>,
     #[serde(deserialize_with = "price_int_or_string")]
     price: String,
-    published: String,
+    #[serde(default)]
+    published: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_f32_or_default")]
     size: f32,
 }
 
@@ -70,7 +74,7 @@ struct CardsResponse {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Price {
-    #[serde(deserialize_with = "as_u64")]
+    #[serde(default, deserialize_with = "deserialize_u64_or_default")]
     price: u64,
 }
 
@@ -83,10 +87,11 @@ impl Price {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct AdData {
-    #[serde(deserialize_with = "as_u64")]
+    #[serde(default, deserialize_with = "deserialize_u64_or_default")]
     maintenance_fee: u64,
-    #[serde(deserialize_with = "as_u64")]
+    #[serde(default, deserialize_with = "deserialize_u64_or_default")]
     size: u64,
+    #[serde(default)]
     room_configuration: String,
 }
 
@@ -287,9 +292,12 @@ impl Oikotie {
     /// Calculates the estimated rent fo the given apartment
     ///
     /// Depends on a call to Oikotie to get the nearby rental apartments.
-    /// Estimated the rent using heuristics.
-    /// TODO: Make rent evaluation ML based.
-    pub async fn get_estimated_rent(&mut self, apartment: &InsertableApartment) -> Result<i32> {
+    /// Estimated the rent using heuristics or, if available, the external ML service.
+    pub async fn get_estimated_rent(
+        &mut self,
+        config: &Arc<Config>,
+        apartment: &InsertableApartment,
+    ) -> Result<i32> {
         let location = &Location {
             id: apartment.location_id.unwrap(),
             level: apartment.location_level.unwrap(),
@@ -300,6 +308,39 @@ impl Oikotie {
             min: Some((size * 0.9) as i32),
             max: Some((size * 1.1) as i32),
         };
+
+        let rooms = apartment.rooms.unwrap_or_default();
+        let price = apartment.price.unwrap_or_default();
+        let maintenance_fee = apartment.additional_costs.unwrap_or_default();
+
+        if config
+            .ml_service_url
+            .as_ref()
+            .map(|url| !url.is_empty())
+            .unwrap_or(false)
+        {
+            let request = RentPredictionRequest {
+                location_id: location.id,
+                location_level: location.level,
+                size,
+                rooms,
+                price: price as f64,
+                maintenance_fee: maintenance_fee as f64,
+                auth_token: None,
+            };
+
+            match ml_client::predict_rent(config.as_ref(), request).await {
+                Ok(prediction) if prediction > 0 => return Ok(prediction),
+                Ok(_) => warn!(
+                    "ML service returned non-positive rent for card {}, using heuristic fallback",
+                    apartment.card_id
+                ),
+                Err(err) => warn!(
+                    "Failed to fetch rent from ML service for card {}: {}",
+                    apartment.card_id, err
+                ),
+            }
+        }
 
         let rental_apartments_nearby = self.get_rental_data(location, size_range).await;
 
@@ -453,10 +494,25 @@ async fn card_into_complete_apartment(
     let maintenance_i64 = i64::try_from(card_data.ad_data.maintenance_fee)
         .context("Maintenance fee does not fit in signed 64-bit integer")?;
 
-    let price = i32::try_from(price_i64)
-        .context("Price is too large to store in database (requires Int4)")?;
-    let maintenance_fee = i32::try_from(maintenance_i64)
-        .context("Maintenance fee is too large to store in database (requires Int4)")?;
+    let price = if price_i64 > i64::from(i32::MAX) {
+        warn!(
+            "Price {} exceeds i32 range for card {}, clamping to i32::MAX",
+            price_i64, card_id
+        );
+        i32::MAX
+    } else {
+        price_i64 as i32
+    };
+
+    let maintenance_fee = if maintenance_i64 > i64::from(i32::MAX) {
+        warn!(
+            "Maintenance fee {} exceeds i32 range for card {}, clamping to i32::MAX",
+            maintenance_i64, card_id
+        );
+        i32::MAX
+    } else {
+        maintenance_i64 as i32
+    };
 
     Ok(InsertableApartment {
         card_id,
@@ -464,7 +520,7 @@ async fn card_into_complete_apartment(
         location_level: Some(location.level),
         location_name: Some(location.name.clone()),
         size: Some(card.size as f64),
-        rooms: Some(card.rooms as i32),
+        rooms: Some(card.rooms.unwrap_or_default() as i32),
         price: Some(price),
         additional_costs: Some(maintenance_fee),
         rent: Some(0),
@@ -502,6 +558,66 @@ fn price_int_or_string<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Str
         Value::Number(num) => {
             (num.as_f64().ok_or(de::Error::custom("Invalid number"))? as i32).to_string()
         }
+        Value::Null => "0".to_string(),
         _ => return Err(de::Error::custom("wrong type")),
     })
+}
+
+fn deserialize_u64_or_default<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<Value>::deserialize(deserializer)?;
+    let parsed = match value {
+        Some(Value::Number(num)) => num.as_u64(),
+        Some(Value::String(s)) => s
+            .chars()
+            .filter(|c| c.is_ascii_digit())
+            .collect::<String>()
+            .parse::<u64>()
+            .ok(),
+        Some(Value::Null) | None => Some(0),
+        other => {
+            warn!("Unexpected value for u64 field from API: {:?}", other);
+            Some(0)
+        }
+    };
+
+    Ok(parsed.unwrap_or_else(|| {
+        warn!(
+            target: "apato::oikotie::payload",
+            "Failed to parse u64 value from API payload, defaulting to 0"
+        );
+        0
+    }))
+}
+
+fn deserialize_f32_or_default<'de, D>(deserializer: D) -> Result<f32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<Value>::deserialize(deserializer)?;
+    let parsed = match value {
+        Some(Value::Number(num)) => num.as_f64().map(|v| v as f32),
+        Some(Value::String(s)) => s
+            .chars()
+            .filter(|c| c.is_ascii_digit() || *c == '.' || *c == ',')
+            .collect::<String>()
+            .replace(',', ".")
+            .parse::<f32>()
+            .ok(),
+        Some(Value::Null) | None => Some(0.0),
+        other => {
+            warn!("Unexpected value for f32 field from API: {:?}", other);
+            Some(0.0)
+        }
+    };
+
+    Ok(parsed.unwrap_or_else(|| {
+        warn!(
+            target: "apato::oikotie::payload",
+            "Failed to parse f32 value from API payload, defaulting to 0"
+        );
+        0.0
+    }))
 }

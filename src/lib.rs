@@ -7,6 +7,7 @@ pub mod consumer;
 pub mod db;
 pub mod interest_rate;
 pub mod logger;
+pub mod ml_client;
 pub mod models;
 pub mod oikotie;
 pub mod producer;

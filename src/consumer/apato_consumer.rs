@@ -222,7 +222,7 @@ async fn process_apartment(
         };
 
         if !is_fresh {
-            let estimated_rent = oikotie.get_estimated_rent(&apartment).await?;
+            let estimated_rent = oikotie.get_estimated_rent(config, &apartment).await?;
             apartment.rent = Some(estimated_rent);
             let new_irr = match get_estimated_irr(config, apartment.clone()).await {
                 Ok(irr) => irr,
@@ -249,7 +249,7 @@ async fn process_apartment(
             }
         }
     } else {
-        let estimated_rent = oikotie.get_estimated_rent(&apartment).await?;
+        let estimated_rent = oikotie.get_estimated_rent(config, &apartment).await?;
 
         apartment.rent = Some(estimated_rent);
 

@@ -64,6 +64,39 @@ Run Apato:
 cargo run
 ```
 
+### Optional: Rent ML Service
+
+Apato can call a separate Python service to predict rents instead of using the built-in heuristic.
+
+1. **Install dependencies**
+
+   ```bash
+   cd ml
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install fastapi uvicorn numpy keras
+   ```
+
+2. **Provide the model**
+
+   Place your trained Keras model at `ml/models/rent_model.keras`. If the file is missing the service will fall back to a baseline heuristic.
+
+3. **Run the service**
+
+   ```bash
+   uvicorn ml.server:app --reload --port 8000
+   ```
+
+4. **Point Apato to the service**
+
+   Set `ml_service_url` in `config.toml`, for example:
+
+   ```toml
+   ml_service_url = "http://127.0.0.1:8000"
+   ```
+
+   Leave the value empty or unset to keep using the heuristic calculator.
+
 ## Bot commands
 
 Subscribe to a watchlist at location `id` and set the wanted yield to be `yield`
