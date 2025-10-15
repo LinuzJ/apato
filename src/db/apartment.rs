@@ -65,10 +65,14 @@ pub fn get_matching_for_watchlist(
         Err(_e) => return Err(anyhow!("No watchlist wound with this name")),
     };
 
+    let target_yield_value = target_watchlist
+        .target_yield
+        .ok_or_else(|| anyhow!("Watchlist does not have a target yield set"))?;
+
     let matching_apartments = apartment_watchlist::table
         .inner_join(apartments::table.on(apartment_watchlist::card_id.eq(apartments::card_id)))
         .filter(apartment_watchlist::watchlist_id.eq(watchlist_id_))
-        .filter(apartments::estimated_yield.gt(target_watchlist.target_yield.unwrap()))
+        .filter(apartments::estimated_yield.gt(target_yield_value))
         .select(Apartment::as_select())
         .load::<Apartment>(conn);
 
