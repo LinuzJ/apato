@@ -575,7 +575,17 @@ where
             .filter(|c| c.is_ascii_digit())
             .collect::<String>()
             .parse::<u64>()
-            .ok(),
+            .ok()
+            .or_else(|| {
+                // Some values arrive as floats; try parsing as f64 then cast
+                s.chars()
+                    .filter(|c| c.is_ascii_digit() || *c == '.' || *c == ',')
+                    .collect::<String>()
+                    .replace(',', ".")
+                    .parse::<f64>()
+                    .ok()
+                    .map(|v| v.round() as u64)
+            }),
         Some(Value::Null) | None => Some(0),
         other => {
             warn!("Unexpected value for u64 field from API: {:?}", other);
