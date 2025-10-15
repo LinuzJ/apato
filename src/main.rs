@@ -10,6 +10,7 @@ use apato::{
     consumer::apato_consumer::Consumer,
     logger::setup_logger,
     producer::apato_producer::Producer,
+    web::{start_http_server, AppState},
     MessageTask,
 };
 use futures::future::TryJoinAll;
@@ -73,6 +74,14 @@ async fn main() -> Result<()> {
 
     let (bot_handle, bot_shutdown_token) = bot.spawn();
 
+    let http_handle = {
+        let state = AppState {
+            config: config.clone(),
+        };
+        let http_shutdown = shutdown_tx.subscribe();
+        tokio::spawn(async move { start_http_server(state, http_shutdown).await })
+    };
+
     {
         let shutdown = shutdown.clone();
         std::thread::spawn(move || {
@@ -95,7 +104,12 @@ async fn main() -> Result<()> {
 
     let join_consumer_handles = consumer_handles.into_iter().collect::<TryJoinAll<_>>();
 
-    if let Err(err) = tokio::try_join!(producer_handle, join_consumer_handles, bot_handle,) {
+    if let Err(err) = tokio::try_join!(
+        producer_handle,
+        join_consumer_handles,
+        bot_handle,
+        http_handle,
+    ) {
         error!("Error: {:?}", err)
     }
 

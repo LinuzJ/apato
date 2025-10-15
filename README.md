@@ -64,6 +64,20 @@ Run Apato:
 cargo run
 ```
 
+### Web Console
+
+Apato exposes an HTTP API alongside the Telegram bot. It listens on `http://localhost:8080` by default and mirrors the same watchlist operations.
+
+To start the API together with the workers, simply run `cargo run` as above. Then, in a separate terminal, install the TypeScript front-end dependencies and launch the development server:
+
+```
+cd webapp
+npm install
+npm run dev
+```
+
+The UI is available at `http://localhost:5173`. Set the chat id in the form to browse, create, or delete watchlists, and to fetch matching apartments. You can change the backend URL by setting the `VITE_APATO_API` environment variable before running `npm run dev`.
+
 ### Optional: Rent ML Service
 
 Apato can call a separate Python service to predict rents instead of using the built-in heuristic.

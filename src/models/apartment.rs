@@ -1,6 +1,7 @@
 use crate::models::watchlist::Watchlist;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
+use serde::Serialize;
 
 #[derive(Insertable, Clone)]
 #[diesel(table_name = crate::db::schema::apartments)]
@@ -18,7 +19,7 @@ pub struct InsertableApartment {
     pub url: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Associations, Identifiable, Queryable, Selectable)]
+#[derive(Debug, Clone, PartialEq, Associations, Identifiable, Queryable, Selectable, Serialize)]
 #[diesel(belongs_to(Watchlist, foreign_key = id))]
 #[diesel(table_name = crate::db::schema::apartments)]
 #[diesel(check_for_backend(diesel::pg::Pg))]

@@ -17,3 +17,4 @@ config.toml
 __pycache__
 *.csv
 *.keras
+node_modules/

@@ -1,5 +1,6 @@
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
+use serde::Serialize;
 
 #[derive(Insertable)]
 #[diesel(table_name = crate::db::schema::watchlists)]
@@ -13,7 +14,7 @@ pub struct InsertableWatchlist {
     pub target_size_max: Option<i32>,
 }
 
-#[derive(Debug, Queryable, Selectable, Identifiable, Clone)]
+#[derive(Debug, Queryable, Selectable, Identifiable, Clone, Serialize)]
 #[diesel(table_name = crate::db::schema::watchlists)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Watchlist {

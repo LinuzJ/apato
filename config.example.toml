@@ -15,3 +15,6 @@ tax = 30
 
 # Optional ML service endpoint (set to null or omit to use heuristic fallback)
 ml_service_url = "http://localhost:8000"
+
+# Optional HTTP API bind address (default 0.0.0.0:8080)
+http_bind_address = "0.0.0.0:8080"

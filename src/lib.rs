@@ -11,6 +11,8 @@ pub mod ml_client;
 pub mod models;
 pub mod oikotie;
 pub mod producer;
+pub mod services;
+pub mod web;
 
 #[derive(Debug, Clone)]
 pub enum TaskType {

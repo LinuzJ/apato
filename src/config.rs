@@ -20,6 +20,7 @@ pub struct Config {
     pub avg_renovation_costs: u32,
     pub tax: u32,
     pub ml_service_url: Option<String>,
+    pub http_bind_address: Option<String>,
 }
 
 pub fn create_test_config() -> Config {
@@ -37,6 +38,7 @@ pub fn create_test_config() -> Config {
         avg_renovation_costs: 5000,
         tax: 30,
         ml_service_url: None,
+        http_bind_address: None,
     }
 }
 
