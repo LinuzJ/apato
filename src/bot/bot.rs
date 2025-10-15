@@ -40,7 +40,7 @@ pub enum Command {
         description = "Unsubscribe to a watchlist. Use watchlist ID.",
         parse_with = parse_string_to_int_message
     )]
-    Unsub(i32),
+    Unsub(Option<i32>),
 
     #[command(description = "List current active watchlist subscriptions")]
     ListWatchlists,
@@ -48,13 +48,13 @@ pub enum Command {
     #[command(description = "Get all apartments/houses in watchlist",
         parse_with = parse_string_to_int_message
     )]
-    GetAll(i32),
+    GetAll(Option<i32>),
 
     #[command(
         description = "Get all apartments/houses in watchlist that are above or equal to the target yield",
         parse_with = parse_string_to_int_message
     )]
-    GetMatching(i32),
+    GetMatching(Option<i32>),
 }
 
 pub struct ApatoTelegramBot {
@@ -190,6 +190,15 @@ pub async fn handle_command(
             Command::Unsub(watchlist_id) => {
                 let chat_id = message.chat.id.0;
 
+                let Some(watchlist_id) = watchlist_id else {
+                    tg.send_message(
+                        message.chat.id,
+                        "Please provide the watchlist ID, e.g. /unsub 42.",
+                    )
+                    .await?;
+                    return Ok(());
+                };
+
                 // Check if watchlist for this place already exists for this chat
                 let existing: Vec<Watchlist> = db::watchlist::get_for_chat(config, chat_id)
                     .iter()
@@ -235,6 +244,15 @@ pub async fn handle_command(
                 }
             }
             Command::GetAll(watchlist_id) => {
+                let Some(watchlist_id) = watchlist_id else {
+                    tg.send_message(
+                        message.chat.id,
+                        "Please provide the watchlist ID, e.g. /getall 42.",
+                    )
+                    .await?;
+                    return Ok(());
+                };
+
                 let chat_id = message.chat.id.0;
 
                 let all_apartments_result =
@@ -254,6 +272,15 @@ pub async fn handle_command(
                 }
             }
             Command::GetMatching(watchlist_id) => {
+                let Some(watchlist_id) = watchlist_id else {
+                    tg.send_message(
+                        message.chat.id,
+                        "Please provide the watchlist ID, e.g. /getmatching 42.",
+                    )
+                    .await?;
+                    return Ok(());
+                };
+
                 let chat_id = message.chat.id.0;
                 let apartments_result =
                     db::apartment::get_matching_for_watchlist(config, chat_id, watchlist_id);
@@ -323,11 +350,16 @@ fn parse_subscribe_message(input: String) -> Result<(SubscriptionArgs,), ParseEr
     Ok((args,))
 }
 
-fn parse_string_to_int_message(input: String) -> Result<(i32,), ParseError> {
-    let input = input.parse::<i32>();
-    match input {
-        Ok(id) => Ok((id,)),
-        Err(e) => Err(ParseError::Custom(Box::from(e))),
+fn parse_string_to_int_message(input: String) -> Result<(Option<i32>,), ParseError> {
+    if input.trim().is_empty() {
+        return Ok((None,));
+    }
+
+    match input.trim().parse::<i32>() {
+        Ok(id) => Ok((Some(id),)),
+        Err(_) => Err(ParseError::Custom(
+            "Unable to parse the supplied ID.".into(),
+        )),
     }
 }
 
