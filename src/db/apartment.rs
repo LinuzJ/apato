@@ -40,13 +40,15 @@ pub fn get_all_for_watchlist(
         return Err(anyhow!("Error: Wrong chat"));
     }
 
-    let apartments_in_watchlist = apartment_watchlist::table
-        .inner_join(apartments::table.on(apartment_watchlist::card_id.eq(apartments::card_id)))
-        .filter(apartment_watchlist::watchlist_id.eq(watchlist_id_))
+    let target_watchlist = get_watchlist(config, watchlist_id_)?;
+
+    let apartments_for_watchlist = apartments::table
+        .filter(apartments::location_id.eq(Some(target_watchlist.location_id)))
+        .filter(apartments::location_level.eq(Some(target_watchlist.location_level)))
         .select(Apartment::as_select())
         .load::<Apartment>(conn);
 
-    Ok(apartments_in_watchlist?)
+    Ok(apartments_for_watchlist?)
 }
 
 pub fn get_matching_for_watchlist(
