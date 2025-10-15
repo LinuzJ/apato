@@ -133,15 +133,42 @@ pub async fn handle_command(
                         "Please provide the arguments needed. Check /help for guidance.",
                     )
                     .await?;
+                    return Ok(());
                 }
 
-                let location = args.location;
-                let message_target_yield = args.target_yield.unwrap().into();
-                let size: (f64, f64) =
-                    (args.min_size.unwrap().into(), args.max_size.unwrap().into());
+                let SubscriptionArgs {
+                    location,
+                    target_yield,
+                    min_size,
+                    max_size,
+                } = args;
+
+                let message_target_yield = match target_yield {
+                    Some(value) => f64::from(value),
+                    None => {
+                        tg.send_message(
+                            chat_id,
+                            "Target yield is missing. Please provide it, e.g. yield=10.",
+                        )
+                        .await?;
+                        return Ok(());
+                    }
+                };
+
+                let size_range = match (min_size, max_size) {
+                    (Some(min), Some(max)) => (f64::from(min), f64::from(max)),
+                    _ => {
+                        tg.send_message(
+                            chat_id,
+                            "Both min_size and max_size must be provided, e.g. min_size=50 max_size=60.",
+                        )
+                        .await?;
+                        return Ok(());
+                    }
+                };
 
                 match subscribe_to_watchlist(
-                    size,
+                    size_range,
                     message_target_yield,
                     location,
                     chat_id,
