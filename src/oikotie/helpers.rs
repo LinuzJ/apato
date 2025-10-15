@@ -1,3 +1,4 @@
+use log::warn;
 use rand::Rng;
 use regex::Regex;
 
@@ -25,8 +26,8 @@ pub fn get_rent_regex(rent_string: String) -> i32 {
             }
         }
     } else {
-        // TODO FIX
-        panic!("lol")
+        warn!("Unable to parse rent amount from '{}'", rent_string);
+        result = 0;
     }
 
     result
