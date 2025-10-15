@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use anyhow::{anyhow, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -34,7 +35,7 @@ struct FinlandInput {
     first_time_buyer: bool,
 }
 
-pub async fn get_interest_rate(config: &Arc<Config>) -> Result<f64, reqwest::Error> {
+pub async fn get_interest_rate(config: &Arc<Config>) -> Result<f64> {
     let loan_duration_years: i32 = config.loan_duration_years as i32;
     let down_payment_percentage: f32 = config.down_payment_percentage as f32 / 100.0;
 
@@ -78,5 +79,9 @@ pub async fn get_interest_rate(config: &Arc<Config>) -> Result<f64, reqwest::Err
     let response = request.send().await?;
     let api_response: ApiResponse = response.json().await?;
 
-    Ok(api_response.mortgages[0].interest_rate)
+    api_response
+        .mortgages
+        .get(0)
+        .map(|mortgage| mortgage.interest_rate)
+        .ok_or_else(|| anyhow!("Nordea API returned no mortgage rates"))
 }
