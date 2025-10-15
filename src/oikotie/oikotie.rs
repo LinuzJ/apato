@@ -13,7 +13,7 @@ use crate::RequestType;
 use crate::URLS;
 
 use anyhow::anyhow;
-use anyhow::{Error, Result};
+use anyhow::{Context, Result};
 use helpers::create_location_string;
 use log::error;
 
@@ -125,6 +125,25 @@ pub struct RentalData {
     pub size: f32,
 }
 
+fn build_authenticated_headers(tokens: &OikotieTokens) -> Result<HeaderMap> {
+    let mut headers: HeaderMap = HeaderMap::new();
+    headers.insert(
+        "ota-loaded",
+        HeaderValue::from_str(&tokens.loaded)
+            .context("Failed to set ota-loaded header from tokens")?,
+    );
+    headers.insert(
+        "ota-cuid",
+        HeaderValue::from_str(&tokens.cuid).context("Failed to set ota-cuid header from tokens")?,
+    );
+    headers.insert(
+        "ota-token",
+        HeaderValue::from_str(&tokens.token)
+            .context("Failed to set ota-token header from tokens")?,
+    );
+    Ok(headers)
+}
+
 #[derive(Debug)]
 pub struct Oikotie {
     pub tokens: Option<Box<OikotieTokens>>,
@@ -145,12 +164,23 @@ impl Oikotie {
         }
     }
 
+    async fn ensure_tokens(&mut self) -> Result<&OikotieTokens> {
+        if self.tokens.is_none() {
+            self.tokens = get_tokens().await;
+        }
+
+        self.tokens
+            .as_deref()
+            .ok_or_else(|| anyhow!("Failed to fetch authentication tokens from Oikotie"))
+    }
+
     /// Use Oikotie's search API to find location ID based on text query.
     pub async fn get_locations_for_zip_code(
         &mut self,
         zip_code: &str,
     ) -> Result<Vec<LocationResponse>> {
-        let locations = match fetch_location_id(self.tokens.as_ref().unwrap(), zip_code).await {
+        let tokens = self.ensure_tokens().await?;
+        let locations = match fetch_location_id(tokens, zip_code).await {
             Ok(l) => l,
             Err(e) => {
                 error!("Error while fetching location id from Oikotie: {}", e);
@@ -175,9 +205,7 @@ impl Oikotie {
         watchlist: &Watchlist,
         size: SizeTarget,
     ) -> Result<Vec<InsertableApartment>> {
-        if self.tokens.is_none() {
-            self.tokens = get_tokens().await;
-        }
+        let tokens = self.ensure_tokens().await?.clone();
 
         // TODO: Benchmark this function. Why so slow?
         let location: &Location = &Location {
@@ -187,7 +215,7 @@ impl Oikotie {
         };
 
         let cards_response: Result<CardsResponse> =
-            fetch_apartments_for_sale(self.tokens.as_ref().unwrap(), location.clone(), size).await;
+            fetch_apartments_for_sale(&tokens, location.clone(), size).await;
 
         let cards = match cards_response {
             Ok(c) => c.cards,
@@ -197,19 +225,22 @@ impl Oikotie {
         let mut apartments: Vec<InsertableApartment> = Vec::new();
 
         for card in cards {
-            let existing_apartment =
-                match db::apartment::get_apartment_by_card_id(&config, card.id.try_into().unwrap())
-                {
-                    Ok(ap) => ap,
-                    Err(e) => return Err(e.into()),
-                };
+            let card_id: i32 = card
+                .id
+                .try_into()
+                .map_err(|_| anyhow!("Card id {} does not fit in i32", card.id))?;
 
-            let has_been_sent = has_been_sent_to_watchlist(config.clone(), &card, watchlist);
+            let existing_apartment = match db::apartment::get_apartment_by_card_id(&config, card_id)
+            {
+                Ok(ap) => ap,
+                Err(e) => return Err(e.into()),
+            };
+
+            let has_been_sent = has_been_sent_to_watchlist(config.clone(), watchlist, card_id)?;
 
             if existing_apartment.is_none() && !has_been_sent {
                 let apartment: InsertableApartment =
-                    card_into_complete_apartment(self.tokens.as_ref().unwrap(), &card, location)
-                        .await;
+                    card_into_complete_apartment(&tokens, &card, location).await?;
                 apartments.push(apartment);
             }
         }
@@ -223,6 +254,7 @@ impl Oikotie {
         location: &Location,
         size_range: SizeTarget,
     ) -> Result<Vec<RentalData>> {
+        let tokens = self.ensure_tokens().await?.clone();
         let location: Location = Location {
             id: location.id,
             level: location.level,
@@ -230,8 +262,7 @@ impl Oikotie {
         };
 
         let oikotie_rental_cards_response: Result<CardsResponse> =
-            fetch_apartments_for_rent(self.tokens.as_ref().unwrap(), location.clone(), size_range)
-                .await;
+            fetch_apartments_for_rent(&tokens, location.clone(), size_range).await;
 
         let oikotie_rental_cards = match oikotie_rental_cards_response {
             Ok(c) => c.cards,
@@ -258,10 +289,7 @@ impl Oikotie {
     /// Depends on a call to Oikotie to get the nearby rental apartments.
     /// Estimated the rent using heuristics.
     /// TODO: Make rent evaluation ML based.
-    pub async fn get_estimated_rent(
-        &mut self,
-        apartment: &InsertableApartment,
-    ) -> Result<i32, Error> {
+    pub async fn get_estimated_rent(&mut self, apartment: &InsertableApartment) -> Result<i32> {
         let location = &Location {
             id: apartment.location_id.unwrap(),
             level: apartment.location_level.unwrap(),
@@ -288,70 +316,37 @@ impl Oikotie {
 async fn fetch_location_id(
     tokens: &OikotieTokens,
     zip_code: &str,
-) -> Result<Vec<LocationResponse>, reqwest::Error> {
+) -> Result<Vec<LocationResponse>> {
     // Use location level 5 here to get ZIP CODE locations
     let params: Vec<(&str, &str)> = vec![("query", zip_code), ("card_type", "5")];
 
-    let mut headers: HeaderMap = HeaderMap::new();
-    match HeaderValue::from_str(&tokens.loaded) {
-        Ok(loaded) => headers.insert("ota-loaded", loaded),
-        Err(_e) => todo!(),
-    };
-    match HeaderValue::from_str(&tokens.cuid) {
-        Ok(cuid) => headers.insert("ota-cuid", cuid),
-        Err(_e) => todo!(),
-    };
-    match HeaderValue::from_str(&tokens.token) {
-        Ok(token) => headers.insert("ota-token", token),
-        Err(_e) => todo!(),
-    };
+    let headers = build_authenticated_headers(tokens)?;
 
-    let response = send_request(RequestType::GET, URLS::LOCATION, params, headers).await;
+    let response = send_request(RequestType::GET, URLS::LOCATION, params, headers).await?;
     // Perform the actual request
 
-    let api_response: Vec<LocationResponse> = match response {
-        Ok(re) => re.json().await?,
-        Err(e) => return Err(e),
-    };
+    let api_response: Vec<LocationResponse> = response.json().await?;
 
     Ok(api_response)
 }
 
-async fn fetch_card(
-    tokens: &OikotieTokens,
-    card_id: String,
-) -> Result<CardResponse, reqwest::Error> {
+async fn fetch_card(tokens: &OikotieTokens, card_id: String) -> Result<CardResponse> {
     let client: reqwest::Client = reqwest::Client::new();
 
     // Create request with needed token headers
     let mut oikotie_cards_api_url = String::from("https://asunnot.oikotie.fi/api/5.0/card/");
     oikotie_cards_api_url.push_str(&card_id.to_owned());
 
-    let mut headers: HeaderMap = HeaderMap::new();
-    match HeaderValue::from_str(&tokens.loaded) {
-        Ok(loaded) => headers.insert("ota-loaded", loaded),
-        Err(_e) => todo!(),
-    };
-    match HeaderValue::from_str(&tokens.cuid) {
-        Ok(cuid) => headers.insert("ota-cuid", cuid),
-        Err(_e) => todo!(),
-    };
-    match HeaderValue::from_str(&tokens.token) {
-        Ok(token) => headers.insert("ota-token", token),
-        Err(_e) => todo!(),
-    };
+    let headers = build_authenticated_headers(tokens)?;
 
     // Perform the actual request
     let response = client
         .get(oikotie_cards_api_url)
         .headers(headers)
         .send()
-        .await;
+        .await?;
 
-    let api_response: CardResponse = match response {
-        Ok(re) => re.json().await?,
-        Err(e) => return Err(e),
-    };
+    let api_response: CardResponse = response.json().await?;
 
     Ok(api_response)
 }
@@ -395,20 +390,7 @@ async fn fetch_apartments(
         params.push(("size[max]", &max_size));
     }
 
-    let mut headers: HeaderMap = HeaderMap::new();
-
-    match HeaderValue::from_str(&tokens.loaded) {
-        Ok(loaded) => headers.insert("ota-loaded", loaded),
-        Err(_e) => todo!(),
-    };
-    match HeaderValue::from_str(&tokens.cuid) {
-        Ok(cuid) => headers.insert("ota-cuid", cuid),
-        Err(_e) => todo!(),
-    };
-    match HeaderValue::from_str(&tokens.token) {
-        Ok(token) => headers.insert("ota-token", token),
-        Err(_e) => todo!(),
-    };
+    let headers = build_authenticated_headers(tokens)?;
 
     let response = send_request(
         crate::RequestType::GET,
@@ -448,7 +430,7 @@ async fn card_into_complete_apartment(
     tokens: &OikotieTokens,
     card: &Card,
     location: &Location,
-) -> InsertableApartment {
+) -> Result<InsertableApartment> {
     // TODO FIX THIS TO HANDLE 5.0 API
     // Fetch card data that includes total price information
     let card_data: CardResponse = match fetch_card(tokens, card.id.to_string()).await {
@@ -462,36 +444,56 @@ async fn card_into_complete_apartment(
         }
     };
 
-    InsertableApartment {
-        card_id: card.id as i32,
+    let card_id: i32 = card
+        .id
+        .try_into()
+        .map_err(|_| anyhow!("Card id {} does not fit in i32", card.id))?;
+    let price_i64 = i64::try_from(card_data.price_data.price)
+        .context("Price does not fit in signed 64-bit integer")?;
+    let maintenance_i64 = i64::try_from(card_data.ad_data.maintenance_fee)
+        .context("Maintenance fee does not fit in signed 64-bit integer")?;
+
+    let price = i32::try_from(price_i64)
+        .context("Price is too large to store in database (requires Int4)")?;
+    let maintenance_fee = i32::try_from(maintenance_i64)
+        .context("Maintenance fee is too large to store in database (requires Int4)")?;
+
+    Ok(InsertableApartment {
+        card_id,
         location_id: Some(location.id),
         location_level: Some(location.level),
         location_name: Some(location.name.clone()),
         size: Some(card.size as f64),
         rooms: Some(card.rooms as i32),
-        price: Some(card_data.price_data.price as i32),
-        additional_costs: Some(card_data.ad_data.maintenance_fee as i32),
+        price: Some(price),
+        additional_costs: Some(maintenance_fee),
         rent: Some(0),
         estimated_yield: Some(0.0),
         url: Some(card.url.clone()),
-    }
+    })
 }
 
-fn has_been_sent_to_watchlist(config: Arc<Config>, card: &Card, watchlist: &Watchlist) -> bool {
-    let apartments =
-        match get_watchlist_apartment_connector(&config, watchlist, card.id.try_into().unwrap()) {
-            Ok(aps) => aps,
-            Err(_e) => {
-                error!("Error while querying apartmetns withing period");
-                vec![]
-            }
-        };
+fn has_been_sent_to_watchlist(
+    config: Arc<Config>,
+    watchlist: &Watchlist,
+    card_id: i32,
+) -> Result<bool> {
+    let apartments = match get_watchlist_apartment_connector(&config, watchlist, card_id) {
+        Ok(aps) => aps,
+        Err(_e) => {
+            error!(
+                "Error while querying apartments within period for card {}: {:?}",
+                card_id, _e
+            );
+            vec![]
+        }
+    };
 
     if apartments.is_empty() {
-        return false;
+        return Ok(false);
     }
 
-    apartments[0].has_been_sent
+    Ok(apartments[0].has_been_sent)
 }
 
 fn price_int_or_string<'de, D: Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
